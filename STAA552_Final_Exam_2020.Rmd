@@ -1,0 +1,406 @@
+---
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+\newcommand{\jayline}{\underline{\ \ \ \ \ \ \ \ \ \ \ \ \ }}
+STAA552 Final Exam - Fall 2020.
+========================================================
+#### Name:  Jon Dollard
+
+*********************************************************************************
+
+\newcommand{\bone}{{\bf 1}}
+\newcommand{\pr}[1]{\mbox{P}\left(#1\right)}
+\newcommand{\E}[1]{\mbox{E}\left[#1\right]}
+\newcommand{\V}[1]{\mbox{Var}\left(#1\right)}
+\newcommand{\ecdf}[1]{\widehat{F}\left(#1\right)}
+\newcommand{\equant}[1]{\widehat{\theta}_{#1}}
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
+#### READ THE FOLLOWING INSTRUCTIONS CAREFULLY.
+
+  * 1. You must return this exam within 24 hours.  Submit as a final pdf through Canvas.
+  
+  * 2. This exam is open notes.
+  
+  * 3. You will obviously use a computer for this exam. 
+  
+  * 4. You must show your work clearly, typeset (not handwritten) in the answer blocks provided, to receive full credit. Answers not in their answer blocks will receive no credit. Write clear and well-documented code, label your figures (if any) clearly, and write complete (but concise) descriptions of your results. Use RANTDRC format to give complete hypothesis test results. 
+  
+  * 5. You must independently finish this exam. If you don't understand a question, or are having some other difficulty, do not hesitate to ask your instructors for clarification **via email to  both me and Nehali through Canvas.**  
+  
+  * 6. Contacting *anyone else* about this exam constitutes unauthorized aid during this exam and is considered cheating.
+
+**By submitting your completed exam through Canvas, you are pledging that you have neither given nor received any unauthorized aid during this exam.**
+
+***
+\newpage
+
+
+
+1. Deaths due to pandemic disease are often under-reported in official statistics.  Deaths due to the disease itself may not be diagnosed due to lack of testing or post-mortem examinations, and indirect deaths due to overloaded health systems, loss of insurance, or other causes may not be credited to the emergency situation. In this problem, the goal is to estimate **excess deaths** during the COVID-19 pandemic in Colorado in Spring 2020.  Estimation of excess deaths requires estimation of expected deaths in the absence of a pandemic. This problem asks you to fit a very large model to pre-pandemic Colorado data and show that it fits; find a simpler, smaller model that still fits; use your smaller model to predict expected deaths in Spring 2020; and compare actual deaths to your predicted expected deaths plus official COVID-19 deaths. The data are contained in the file `Colorado_Total_Deaths.csv` and include `time`, an observation index ranging from 1 to 240; `year`, with values 2015 through 2020; `week` of the year, ranging from 1 to 52; `deaths`, the total count of weekly Colorado deaths from all causes, according to the CDC; `population`, the total Colorado population (interpolated from US Census figures); `date`; and `pandemic`, an indicator that is 0 for all weeks except for the last 11 weeks, (`time` = 230 to 240), corresponding to late February, March, April, and early May 2020.   *In this problem, we will use Poisson regression techniques to develop a suitable model, even if some extra-Poisson variation may be present.*
+
+Note: these are time series data.  Ideally, residuals from our models will look identically distributed over time and will not have any *serial autocorrelation*, which we can measure with the *sample autocorrelation function (sample acf)*.  Here is the sample acf for 200 iid normal random variables: 
+```{r}
+Z <- rnorm(200)
+acf(Z)
+```
+The time series is perfectly autocorrelated with itself (Lag = 0) but has no evidence of other significant autocorrelations: the dashed  "Bartlett bounds" are used to assess significance.  For independent data, only about 5% of the sample autocorrelations will exit the bounds, purely due to chance. Run the above chunk of code several times to get a feel for the behavior of the sample acf. 
+
+(1a.)  Deaths vary year to year due to population changes and other factors and they have a seasonal pattern, changing week to week and peaking in winter (largely due to pneumonia and influenza).  Fit a large (but not saturated) additive Poisson regression model for the pre-pandemic data (`pandemic == 0`) that includes an offset to reflect the population of Colorado, a categorical factor for `year` (six distinct years, so five dummy variables), and a categorical factor for `week` (52 distinct weeks, so 51 dummy variables).  Plot the deviance residuals from your fitted model versus  predicted values and versus time, and also compute their sample autocorrelation function.  Argue that the large model fits adequately based on your residual plots. 
+
+***
+**Answer:**
+
+```{r, message=FALSE}
+#Read in the data set and take a look at the head
+death_data <- read.csv(file = "Colorado_Total_Deaths.csv", header = TRUE)
+head(death_data)
+attach(death_data)
+
+#For this model we want to look at pre pandemic deaths, where pandemic == 0
+death_data_pp <- death_data[pandemic == 0, ]
+head(death_data_pp)
+
+#Double check to make sure we have the right range of time
+max(death_data$time)
+max(death_data_pp$time)
+
+#Fit the Poisson Regression Model
+fit_deaths_lg <- glm(deaths ~ factor(year) + factor(week), 
+                  offset = log(population), 
+                  family = poisson(link = log), data = death_data_pp)
+summary(fit_deaths_lg)
+
+#Calculate predicted values
+predicted_deaths <- predict.glm(fit_deaths_lg, type = 'response')
+death_model_res <- fit_deaths_lg$residuals
+death_model_time <- death_data_pp$time
+
+#Create a plot of deviance residuals vs predicted values and vs time
+death_plot_df <- data.frame(death_model_res, death_model_time, predicted_deaths)
+
+#Plot deviance residuals vs. predicted deaths
+ggplot(data = death_plot_df, aes(x = predicted_deaths, y = death_model_res)) +
+         geom_point(color = "green", size = 3) +
+         labs(x = "Predicted Deaths", y = "Deviance Residuals", 
+         title = "Deviance Residuals vs. Predicted Deaths") +               
+         theme(plot.title = element_text(hjust = 0.5)) 
+
+#Plot deviance residuals vs. time
+ggplot(data = death_plot_df, aes(x = death_model_time, y = death_model_res)) +
+         geom_point(color = "red", size = 3) +
+         labs(x = "Time", y = "Deviance Residuals", 
+         title = "Deviance Residuals vs. Time") +               
+         theme(plot.title = element_text(hjust = 0.5)) 
+
+#Calculate the acf for the deviance residuals to check for autocorrelation
+acf(death_model_res)
+```
+
+Checking the residual diagnostics of our fitted model we notice that the deviance residuals don't show any particular structure or curvature that would concern us.  We also look at large exceedences in the residuals (>+- 2) and do not see any present.  Another residual diagnostic to check is autocorrelation.  Using the acf() in R we note that we do not see evidence of autocorrelation in the residuals.  Based on the residual diagnostics we can conclude that our model fits the data adequately.
+
+***
+
+(1b). For the pre-pandemic period, plot the `deaths` data (vertical axis) versus `time` (horizontal axis) and add your predictions as a connected line.  Notice the overall rising trend (in part due to increasing population size) and the seasonal pattern that repeats year to year, peaking in winter.  Also notice the roughness of the large model fit and the variation around the model predictions. 
+
+***
+**Answer:**
+
+```{r}
+#Plot deaths vs. time in the pre-pandemic period
+pp_deaths <- death_data_pp$deaths
+pp_death_df <- data.frame(death_model_time, pp_deaths, predicted_deaths)
+
+ggplot(data = pp_death_df, aes(x = death_model_time, y = pp_deaths)) +
+         geom_point(color = "blue", size = 3) +
+         labs(x = "Time", y = "Deaths", 
+         title = "Pre Pandemic Deaths and Predicted Deaths vs. Time") +               
+         theme(plot.title = element_text(hjust = 0.5)) +
+         geom_line(aes(x = death_model_time, y = predicted_deaths), color = "red")
+```
+
+***
+
+(1c). Now try to simplify the previous large model to a simpler model  that still fits. The simpler model should smooth out the roughness of the large model.     Instead of categorical factors for `week` within `year`, we will introduce a sinusoidal model to capture the seasonality. For illustration, consider two years of weekly data and compute one-cycle "sinusoids" (sine and cosine): 
+```{r}
+times <- 1:104
+weeks <- c(1:52, 1:52)
+plot(times,   cos(1 * 2 * pi * weeks / 52), xlab = "Week", type = "l", 
+     ylab = "", col = "red")
+lines(times,  sin(1 * 2 * pi * weeks / 52), col = "blue")
+points(times, cos(1 * 2 * pi * times / 52), pch = 16, col = "red")
+points(times, sin(1 * 2 * pi * times / 52), col = "blue")
+title(main = "One complete cycle per year")
+```
+
+Each sinusoid completes one full cycle per year. It does not matter whether we use weeks 1, 2, ..., 52, 1, 2, ..., 52 (solid curves) or time index 1, 2, ..., 52, 53, ..., 104 (plotting dots) in the arguments of the sinusoids, because of the periodicity.
+
+If we multiply the argument of each sinusoid by two, we get two full cycles per year: 
+```{r}
+plot(times,   cos(2 * 2 * pi * weeks / 52), xlab = "Week", type = "l", 
+     ylab = "", col = "red")
+lines(times,  sin(2 * 2 * pi * weeks / 52), col = "blue")
+points(times, cos(2 * 2 * pi * times / 52), pch = 16, col = "red")
+points(times, sin(2 * 2 * pi * times / 52), col = "blue")
+title(main = "Two complete cycles per year")
+```
+
+And similarly, multiply by three to get three complete cycles per year: 
+```{r}
+plot(times,   cos(3 * 2 * pi * weeks / 52), xlab = "Week", type = "l", 
+     ylab = "", col = "red")
+lines(times,  sin(3 * 2 * pi * weeks / 52), col = "blue")
+points(times, cos(3 * 2 * pi * times / 52), pch = 16, col = "red")
+points(times, sin(3 * 2 * pi * times / 52), col = "blue")
+title(main = "Three complete cycles per year")
+```
+
+By taking linear combinations of sinusoids with different numbers of cycles, we can construct arbitrarily complex periodic functions (aside: this is the idea behind Fourier analysis).  In this problem, consider a total of eight sine and cosine terms with 1, 2, 3, or 4 complete cycles per year. Create these eight sinusoidal functions of `week` (or `time`; these are identical, due to the periodicity) and use them to replace the categorical indicators for `week` in the earlier specification. Fit an additive Poisson regression model for the pre-pandemic data (`pandemic == 0`) that includes an offset to reflect the population of Colorado, a *continuous, linear* term for `year`, and 8 *continuous* sinusoids for `week`, as described above. For the pre-pandemic period, plot the `deaths` data (vertical axis) versus `time` (horizontal axis), add your predictions from the original, large model as a connected line in one color, and add your new predictions from the new sinusoidal model as a connected line in another color.  (Your new predictions should look like a smoothed version of your original predictions.)
+
+***
+**Answer:**
+
+***
+
+
+(1d).  The model that treats `year` as continuous and assumes `week` effects are sinusoidal functions is a special case of the original, large model.  Consequently, we can give a formal test of the adequacy of the new sinusoidal model.  Conduct this test, giving all details in RANTDRC format. 
+
+***
+**Answer:**
+
+***
+
+(1e). Plot the residuals from your fitted sinusoidal model versus predicted values and versus the `time` variable, and also plot their sample autocorrelation function.  Are these plots consistent with the result of your test in (1d)?
+
+***
+**Answer:**
+
+***
+
+(1f).  While it might be possible to simplify the sinusoidal model further, we will use this sinusoidal model for prediction and calculation of excess deaths. For the full data set, predict expected deaths for all weeks, including those with `pandemic == 1`.   For the entire  period, plot the `deaths` data (vertical axis) versus `time` (horizontal axis) and add your predictions from the sinusoidal model as a connected line. Notice that these predictions are in the absence of pandemic conditions. 
+
+***
+**Answer:**
+
+***
+
+
+(1g).  We can measure observed "excess deaths" as 
+\[
+X_{obs}=\mbox{(total deaths during pandemic)}-\mbox{(official COVID-19 deaths)}
+-\mbox{(expected deaths under pre-pandemic conditions)}.
+\]
+If $X_{obs}$ is close to zero (or negative),  then there are no excess deaths and no evidence of under-reporting of pandemic-related deaths.  But if $X_{obs}$ is large (larger than is explainable by natural variation), then there are excess deaths and possible evidence of under-reporting of pandemic-related deaths. Compute $X_{obs}$ using the official COVID-19 deaths (=967 deaths) and using your fitted sinusoidal model during the pandemic period. **Optional bonus:** Is $X_{obs}$ evidence of under-reporting of pandemic-related deaths?  Give a statistical argument.  
+
+***
+**Answer:**
+
+
+***
+
+
+2. The following problem is completely fictional.  Consider a cross-sectional study of young adults, classified according to whether or not they `Skateboard` (`Yes` or `No`), whether or not they have a criminal `Conviction` (`Yes` or `No`), and the height of the socks they wear, `SockHeight` (`Low`, `Medium` or `High`). 
+```{r, echo = FALSE}
+Conviction <- rep(c("Yes", "No"), 6)
+Skateboard <- c(rep("No", 6), rep("Yes", 6))
+SockHeight        <- rep(c("Low", "Low", "Medium", "Medium", "High", "High"), 2)
+Count      <- c(11, 43, 14, 104, 8, 196, 42, 169, 20, 132, 2, 59)
+```
+Answer the following questions by fitting and comparing log-linear models via appropriate hypothesis testing procedures. 
+
+
+
+(2a). Are skateboarding, criminal convictions and sock height mutually independent? 
+
+***
+**Answer:**
+
+***
+
+(2b). Does the model of homogeneous association fit?  Answer with an appropriate hypothesis test. 
+
+***
+**Answer:**  
+
+***
+
+(2c). Is criminal conviction conditionally independent of
+skateboarding, given sock height?  Answer with an appropriate hypothesis test. 
+
+***
+**Answer:**  
+ 
+***
+
+(2d). Of the `r sum(Count[Skateboard == "Yes"])` skateboarders, `r round(100 * sum(Count[Skateboard == "Yes" & Conviction == "Yes"]) / sum(Count[Skateboard == "Yes"]), 1)` percent have a criminal conviction, while only `r round(100 * sum(Count[Skateboard == "No" & Conviction == "Yes"]) / sum(Count[Skateboard == "No"]), 1)` percent of the 
+`r sum(Count[Skateboard == "No"])` non-skateboarders have a criminal conviction. One unscrupulous politician uses these data to argue that skateboarding causes crime.  Use sound statistical reasoning, including results of your hypothesis tests above, to refute the politician's argument. 
+  
+***
+**Answer:**
+
+***
+
+3. In May 1967, the US war in Vietnam was ongoing, and young men were subject to being drafted into the military.  College men received a draft deferment (postponement) until they graduated, at which point they would again become eligible for the draft.  Students at the University of North Carolina were surveyed on their support for one of the following four policies for conducting the war in Vietnam: 
+   
+   * `A`. The US should defeat the power of North Vietnam by widespread bombing of its industries, ports and harbors and by land invasion.
+   
+   * `B`. The US should follow the present policy in Vietnam.
+   
+   * `C`. The US should de-escalate its military activity, stop bombing North Vietnam, and intensify its efforts to begin negotiation.
+   
+   * `D`. The US should withdraw its military forces from Vietnam immediately. 
+
+The responses were cross-classified by the students' sex and year of study (`Year = 1` for freshmen, `2` for sophomores, `3` for juniors, and `4` for seniors), resulting in the following graphs: 
+
+```{r, echo = FALSE, message=FALSE}
+Sex <- c(rep("Male", 16), rep("Female", 16))
+Year <- sort(rep(1:4, 4))
+Year <- c(Year, Year)
+Policy <- rep(c("A", "B", "C", "D"), 8)
+Count <- c(175, 116, 131, 17, 
+           160, 126, 135, 21, 
+           132, 120, 154, 29, 
+           145, 95, 185, 44, 
+           13, 19, 40, 5, 
+           5, 9, 33, 3, 
+           22, 29, 110, 6, 
+           12, 21, 58, 10)
+# Fit the saturated model to conveniently plot the data.
+library(nnet) # to get function multinom
+sat <- multinom(Policy ~ Sex * factor(Year), weights = Count)
+#deviance(sat) # notice that deviance of saturated model is not zero
+# Create simple data frame for predictions
+newd <- data.frame(Sex = c(rep("Male", 4), rep("Female", 4)), 
+                   Year = c(1:4, 1:4))
+# Get predictions from the saturated model.  
+# First four rows are for male freshmen, sophomores, juniors, seniors.
+# Last four rows are for female freshmen, sophomores, juniors, seniors;
+out <- predict(sat, newdata = newd, type = "probs")
+# Plot the raw data (same as predictions from saturated model):
+par(mfrow = c(1, 2))
+plot(c(1, 4), range(out), type = "n", ylab = "Probability", xaxt = "n", xlab = "Year")
+axis(side = 1, at = 1:4, labels = c("Fresh.", "Soph.", "Jun.", "Sen."))
+title(main = "Males")
+for(i in 1:4) { 
+  points(rep(i, 4), out[i, ], pch = c("A", "B", "C", "D"), col = 1:4)
+  }
+plot(c(1, 4), range(out), type = "n", ylab = "Probability", xaxt = "n", xlab = "Year")
+axis(side = 1, at = 1:4, labels = c("Fresh.", "Soph.", "Jun.", "Sen."))
+title(main = "Females")
+for(i in 1:4) { 
+  points(rep(i, 4), out[i + 4, ], pch = c("A", "B", "C", "D"), col = 1:4)
+  }
+```
+So, for example, male freshmen (`Fresh.`) chose policy `C` about 30% of the time, while female seniors (`Sen.`) chose policy `B` about 20% of the time. 
+
+The goal is to model the probability distribution of `Policy` choice  as a function of available covariates.  We use `multinom` from the `nnet` package in `R` to find a baseline-category logit model that fits well. 
+
+
+
+(3a). Let $Y_i$ denote the response vector for the $i$th student, with one `1` and three `0`'s to indicate the student's policy choice `A`, `B`, `C`, or `D`.  So, for example, $Y_1=(0,1,0,0)$ indicates that student $i=1$ chose policy `B`.   A model for these data was fitted as follows: 
+```{r}
+f5 <- multinom(Policy ~ Sex + factor(Year), weights = Count)
+summary(f5)
+```    
+Write down the theoretical baseline-category logit model for the Vietnam data that corresponds to the above empirical fit.  Carefully express your theoretical model in detail, including any distributional assumptions.  From the above output, specify the estimates of the unknown parameters in your theoretical model.  
+
+***
+**Answer:**  
+
+***
+
+(3b). Does the model in (3a) fit adequately?  Conduct an appropriate hypothesis test.
+
+***
+**Answer:**
+
+***
+
+(3c). As an alternative to treating `Year` as a categorical variable with 4 levels (1, 2, 3, 4), we could treat `Year` as a continuous variable (linear only, no quadratic or higher-order polynomial terms).  Write down the theoretical baseline-category logit model for the Vietnam data that corresponds to this specification.  Carefully express your theoretical model in detail, including any distributional assumptions.  
+    
+***
+**Answer:**  
+
+***
+
+(3d). Fit the model in (3c). Can `Year` be treated as a continuous variable as in (3c) instead of as a categorical variable as in (3a)?  (These two models are, in fact, nested.)  Answer with an appropriate hypothesis test.
+
+    
+***
+**Answer:**  
+
+***
+
+(3e).  Re-create the figures from above for the empirical probability distributions (from the saturated model) across policies for Males by Year  and Females by Year.  Add to the figures your estimated probabilities from the fit of the additive model with `Sex` and continuous `Year`.  Use the same color scheme and lower-case letters, so that (for example) red uppercase "B" is the data value and red lowercase "b" is the prediction.  Verify your testing above by checking that your estimated probabilities track the empirical probabilities well.  
+
+
+***
+**Answer:**  
+  
+***
+
+4. Pneumoconiosis is a disease of the lungs due to dust inhalation, and is common among coal
+miners, where it is called "black lung disease." The file `Black_Lung_Disease.csv` has records for  $N = 371$ coal miners, consisting of their years of exposure
+(`ExposureTime`) and level of `severity`: 1 for normal lungs (no pneumoconiosis), 2 for mild
+cases, or 3 for severe cases.  Enter the data and assign meaningful ordered labels:
+```{r, echo = FALSE}
+d <- read.csv("Black_Lung_Disease.csv", header = TRUE)
+# Create ordered severity with meaningful labels:
+d$Severity <- ordered(d$severity, levels = 1:3, 
+                      labels = c("normal", "mild", "severe"))
+table(d$ExposureTime, d$Severity)
+```
+
+(4a). Ignoring ordering, fit a saturated model to these data (one probability distribution at each level of exposure) and use your fitted model to plot the empirical probabilities of each level of pneumoconiosis versus exposure time in years.  Use plotting symbols "1" for normal, "2" for mild, and "3" for severe.  How many parameters are in your saturated model?
+
+***
+**Answer:**
+
+***
+
+(4b). The `polr` package in the `MASS` library is used to fit a proportional odds logistic regression model  with a quartic (fourth-order polynomial) function of `ExposureTime` (notice: in class we have negated covariates to make our notation consistent with `R` parameterization, but we don't have to do this.)  Does this quartic model fit the data?  Conduct an appropriate test.
+
+```{r}
+library(MASS) # to get function polr
+fit.quart <- polr(Severity ~ poly(ExposureTime, 4), data = d, method="logistic")
+Probs <- predict(fit.quart, 
+                 newdata=data.frame(ExposureTime= (50:550) /10), type = "probs")
+plot(range(d$ExposureTime), c(0, 1), type = "n", 
+     xlab = "Exposure Time in Years",
+     ylab = "Probability of Pneumoconiosis")
+lines((50:550) / 10, Probs[, 1], col = 1, lwd = 2, lty = 1)
+lines((50:550) / 10, Probs[, 2], col = 2, lwd = 2, lty = 2)
+lines((50:550) / 10, Probs[, 3], col = 3, lwd = 2, lty = 3)
+summary(fit.quart)
+```
+
+***
+**Answer:**
+
+***
+
+
+(4c). Whatever your conclusion in (4b), assume that the quartic model fits adequately.  Can the quartic model be simplified to a cubic model?  What about quadratic?  Justify your answers. 
+
+***
+**Answer:**
+
+
+***
+
+(4d).  Whatever your final proportional odds logistic regression model (quartic, cubic, or quadratic), plot the corresponding fitted probability curves and add the empirical probabilities from your saturated model.  (If everything went well, your fitted curves should match up nicely with the empirical probabilities.) 
+
+
+***
+**Answer:**
+
+
+***
+

@@ -1,0 +1,595 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+STAA552 Homework #5
+========================================================
+
+#### Special happy edition.  No death or disease.
+
+#### Name: Jon Dollard
+
+***
+
+```{r setup, include=FALSE}
+# Use echo = FALSE for Answer Key without R code, 
+# echo = TRUE for complete solutions.
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+```
+
+1. Consider the data in Table 8.16 of Agresti.
+```{r}
+male  <- c(rep(1, 6), rep(0, 6))
+white <- rep(c(1, 1, 1, 0, 0, 0), 2)
+party <- rep(c("Democrat", "Republican", "Independent"), 4)
+count <- c(132, 176, 127, 42, 6, 12, 172, 129, 130, 56, 4, 15)
+cbind(male, white, party, count)
+```
+  a). The goal is to model the probability distribution of `party` affiliation as a function of available covariates.  Use `multinom` from the `nnet` package in `R` to find a baseline-category logit model that fits well. To do this, start by fitting the saturated model as a baseline for comparison. Let $W_i=1$ for `white` and 0 otherwise, and $M_i=1$ for `male` and 0 otherwise.  The theoretical version of the saturated model is
+\[
+Y_i\sim\mbox{independent Multinomial}\left\{N_i;\left(\pi_I({x}_i),\pi_R({x}_i),\pi_D({x}_i)\right)\right\}
+\]
+\[
+{x}_i^T=(1,M_i,W_i,M_iW_i)
+\]
+\[
+\log\left\{\frac{\pi_I({x}_i)}{\pi_D({x}_i)}\right\}=\beta_{0I}+\beta_{1I}M_i
++\beta_{2I}W_i+\beta_{3I}M_iW_i
+\]
+\[
+\log\left\{\frac{\pi_R({x}_i)}{\pi_D({x}_i)}\right\}=\beta_{0R}+\beta_{1R}M_i+\beta_{2R}W_i+\beta_{3R}M_iW_i
+\]
+which has 8 unknown parameters, and `Democrat` as baseline. The fitted version of the saturated model is
+```{r}
+library(nnet)
+fit_sat   <- multinom(party ~ male + white + male : white, weights = count) 
+summary(fit_sat)
+```
+Equivalently, you can fit the model using the shortcut notation `male * white`:
+```{r}
+library(nnet)
+fit_sat   <- multinom(party ~ male * white, weights = count) 
+summary(fit_sat)
+```
+
+
+From either fit, the estimated parameters for `Independent` are 
+\[
+(\hat\beta_{0I}, \hat\beta_{1I}, \hat\beta_{2I}, \hat\beta_{3I})= 
+(`r round(coef(fit_sat)[1, ], 3)`)
+\]
+and the estimated parameters for `Republican` are
+\[
+(\hat\beta_{0R}, \hat\beta_{1R}, \hat\beta_{2R}, \hat\beta_{3R})= 
+(`r round(coef(fit_sat)[2, ], 3)`)
+\]
+
+Now consider each of the simplifications of the saturated model, including the null model.  Among these models, which do you choose? Write down your selected theoretical model in detail, including any distributional assumptions, and specifying the number of unknown parameters.   Make clear in your answer which estimates and standard errors correspond to which parameters in your theoretical model.
+  
+***
+**Answer:**
+
+```{r}
+#Fit simplified versions of the model down to the null
+fit_null <- multinom(party ~ 1, weights = count) 
+fit_male <- multinom(party ~ male, weights = count)
+fit_white <- multinom(party ~ white, weights = count)
+fit_mplusw <- multinom(party ~ male + white, weights = count)
+```
+
+```{r}
+#Next compare the deviances of the simplified fits against the saturated model
+fit_null$deviance - fit_sat$deviance   #null deviance
+fit_male$deviance - fit_sat$deviance   #male only model deviance
+fit_white$deviance - fit_sat$deviance  #white only model deviance
+fit_mplusw$deviance - fit_sat$deviance #male + white model deviance
+```
+
+Based on a review of the deviances I think that the additive model with features white and male is the model I would choose.  The deviance is small compared to the $\chi^2_2$ mean suggesting that this model provides an adequate fit to the data.
+
+```{r}
+#use summary() to get the model parameter and standard error output
+summary(fit_mplusw)
+```
+
+Using the nomenclature defined above our theoretical additive model can be defined as follows:
+
+\[
+Y_i\sim\mbox{independent Multinomial}\left\{N_i;\left(\pi_I({x}_i),\pi_R({x}_i),\pi_D({x}_i)\right)\right\}
+\]
+\[
+{x}_i^T=(1,M_i,W_i)
+\]
+\[
+\log\left\{\frac{\pi_I({x}_i)}{\pi_D({x}_i)}\right\}=\beta_{0I}+\beta_{1I}M_i
++\beta_{2I}W_i
+\]
+\[
+\log\left\{\frac{\pi_R({x}_i)}{\pi_D({x}_i)}\right\}=\beta_{0R}+\beta_{1R}M_i+\beta_{2R}W_i
+\]
+
+For the additive model we have 6 unknown parameters and Democrat is the baseline.
+
+From the model output our unknown parameters and corresponding standard deviations are estimated as follows:
+
+For Independent we have:
+\[
+(\hat\beta_{0I}, \hat\beta_{1I}, \hat\beta_{2I})= 
+(`r round(coef(fit_mplusw)[1, ], 3)`)
+\]
+
+and corresponding standard errors of (0.2296432, 0.1582525, 0.2335159)
+
+For Republican we have:
+\[
+(\hat\beta_{0R}, \hat\beta_{1R}, \hat\beta_{2R})= 
+(`r round(coef(fit_mplusw)[2, ], 3)`)
+\]
+
+and corresponding standard errors of (0.3436657 0.1575206 0.3427926)
+
+***
+
+  b). Conduct a relevant lack-of-fit test for your selected model above in detail, specifying  the null and alternate hypotheses, the distribution of the test statistic under the null hypothesis, the value of the test statistic, and the corresponding $p$-value.  Draw a conclusion.
+
+***
+**Answer:**  
+
+```{r}
+#Lack of fit test
+pval <- pchisq(fit_mplusw$deviance - fit_sat$deviance, df = 2, lower.tail = FALSE)
+pval
+
+#double check
+anova(fit_sat, fit_mplusw)
+```
+
+R: Research Question
+
+Does the additive model using 'white' and 'male' as parameters adequately fit our data?
+
+A: Alternate Hypothesis
+
+The additive model does not fit the data.
+
+N: Null Hypothesis
+
+The additive model does fit the data.
+
+T: Test Statistic
+
+Our test statistic will will be the likelihood ratio test that compares our additive model to the saturated model.
+
+D: Distribution
+
+Under the null hypothesis the likelihood ratio test statistic is approximately ~ $\chi^2_2$.
+
+R: Result
+
+The liklihood ratio test statistic, 0.1982117, has a corresponding p value of 0.9056468.  Therefore, we fail to reject the null hypothesis and conclude that our additive model does fit the data.
+
+C: Conclusion
+
+Since we failed to reject our null hypothesis, we conclude that our additive model with an intercept and parameters 'white' and 'male' fit the data adequately.  We proceed with caution.
+
+***
+
+  c). Consider each possible simplification of your selected model. For
+each such reduced model, show that the simplification
+is not appropriate by conducting the relevant test. For each test, specify the
+null and alternate hypotheses, the distribution of the test statistic
+under the null hypothesis, the value of the test statistic, and the
+corresponding p-value.  For each test, you can use the `R` function `anova(bigger_model_fit, smaller_model_fit)` to compute the test statistic and $p$-value.
+
+***
+**Answer:**  
+
+```{r}
+#Compare the additive model to a model that just contains 'white'
+anova(fit_mplusw, fit_white)
+```
+
+R: Research Question
+
+Can we simplify our model from the additive model to a smaller model that contains a single parameter 'white'?
+
+A: Alternate Hypothesis
+
+The single parameter model containing 'white' is not adequate.  The additive model is necessary to fit the data.
+
+N: Null Hypothesis
+
+The single parameter model provides an adequate fit to the data.
+
+T: Test Statistic
+
+Our test statistic will will be the likelihood ratio test that compares a single parameter model to the additive model.
+
+D: Distribution
+
+Under the null hypothesis the likelihood ratio drop in deviance test statistic is approximately ~ $\chi^2_2$.
+
+R: Result
+
+The liklihood ratio drop in deviance test statistic, 13.44183, has a corresponding p value of 0.001205438.  Therefore, we reject the null hypothesis and conclude that the smaller single parameter model underfits the data.  The larger additive model is necessary to provide an adequate fit of the data.
+
+C: Conclusion
+
+Since we reject our null hypothesis, we conclude that our larger additive model with an intercept and parameters 'white' and 'male' is the model we should use for these data.  
+
+
+```{r}
+#Compare the additive model to a model that contains 'male' only
+anova(fit_mplusw, fit_male)
+```
+
+R: Research Question
+
+Can we simplify our model from the additive model to a smaller model that contains a single parameter 'male'?
+
+A: Alternate Hypothesis
+
+The single parameter model containing 'male' is not adequate.  The additive model is necessary to fit the data.
+
+N: Null Hypothesis
+
+The single parameter model provides an adequate fit to the data.
+
+T: Test Statistic
+
+Our test statistic will will be the likelihood ratio test that compares a single parameter model to the additive model.
+
+D: Distribution
+
+Under the null hypothesis the likelihood ratio drop in deviance test statistic is approximately ~ $\chi^2_2$.
+
+R: Result
+
+The liklihood ratio drop in deviance test statistic, 76.72423, has a corresponding p value of 0.  Therefore, we reject the null hypothesis and conclude that the smaller single parameter model with 'male' as the parameter underfits the data.  The larger additive model is necessary to provide an adequate fit of the data.
+
+C: Conclusion
+
+Since we reject our null hypothesis, we conclude that our larger additive model with an intercept and parameters 'white' and 'male' is the model we should use for these data.
+
+```{r}
+#Compare the additive model to the null model
+anova(fit_mplusw, fit_null)
+```
+
+R: Research Question
+
+Can we simplify our model from the additive model to the smallest model that contains only an intercept (null model)?
+
+A: Alternate Hypothesis
+
+The null model containing an intercept only is not adequate.  The additive model is necessary to fit the data.
+
+N: Null Hypothesis
+
+The null, intercept only, model provides an adequate fit to the data.
+
+T: Test Statistic
+
+Our test statistic will will be the likelihood ratio test that compares the intercept only model to the additive model.
+
+D: Distribution
+
+Under the null hypothesis the likelihood ratio drop in deviance test statistic is approximately ~ $\chi^2_4$.
+
+R: Result
+
+The liklihood ratio drop in deviance test statistic, 91.65908, has a corresponding p value of 0.  Therefore, we reject the null hypothesis and conclude that the smaller intercept only model underfits the data.  The larger additive model is necessary to provide an adequate fit of the data.
+
+C: Conclusion
+
+Since we reject our null hypothesis, we conclude that our larger additive model with an intercept and parameters 'white' and 'male' is the model we should use for these data.
+
+***
+\pagebreak
+2. In the US, we consume about 2.8 billion pounds of chocolate per year.    The following problem uses expert ratings of chocolate bars from around the world, available on `Canvas` as `Flavors_of_Cacao.csv`.  The data are a slightly-edited (removed some strange characters, replaced percentages by proportions, put in `R`-friendly variable names, corrected some typos) version of the data at 
+<https://www.kaggle.com/rtatman/chocolate-bar-ratings>, originally obtained from <http://flavorsofcacao.com/index.html>.  We first enter and edit these data, then focus on the most prevalent cacao bean types and countries of origin:
+```{r, echo = FALSE}
+#----------------------------------------------------------------------------------
+# Read in the data, specifying that empty fields are to be treated as missing.
+choc_0 <- read.csv("Flavors_of_Cacao.csv", header = TRUE, 
+                   na.strings = c("", "NA"))
+#----------------------------------------------------------------------------------
+# Some cleanup. 
+# Drop Company, Bar_Name, and Ref_ID (first three columns) and 
+# Company_Location (column 6) as they will not be used.  
+choc_1 <- subset(choc_0, select = -c(1:3, 6))
+# Drop any records with missing values 
+choc_2 <- na.omit(choc_1) 
+# Bean_Type and Bean_Origin are factors, which is slightly annoying
+# because factors retain all their levels even after subsetting.
+# This means that a table(), for example, can contain zero frequencies.
+# Replace by character vectors to get rid of this issue.
+choc_2$Bean_Origin <- as.character(choc_2$Bean_Origin)
+choc_2$Bean_Type   <- as.character(choc_2$Bean_Type)
+#----------------------------------------------------------------------------------
+# Restrict attention to chocolate bars containing 
+# Criollo, Trinitario, or Forastero beans.  Do this by 
+# looking for these strings in the Bean_Type variable, 
+# returning binary vectors for each.
+choc_2$Criollo    <- 1 * grepl("Criollo",    choc_2$Bean_Type)
+choc_2$Trinitario <- 1 * grepl("Trinitario", choc_2$Bean_Type)
+choc_2$Forastero  <- 1 * grepl("Forastero",  choc_2$Bean_Type)
+# Now subset to only these beans: 
+choc_3 <- subset(choc_2, (Criollo == 1) | (Trinitario == 1) | (Forastero == 1))
+# Keep countries with at least 10 instances: 
+tmp <- sort(table(choc_3$Bean_Origin))
+save_countries <- names(tmp[tmp > 10])
+choc_4 <- subset(choc_3, Bean_Origin %in% save_countries)
+#----------------------------------------------------------------------------------
+# Convert Rating values into ordinal scale:
+# 5= Elite (Transcending beyond the ordinary limits)
+# 4= Premium (Superior flavor development, character and style)
+# 3= Satisfactory(3.0) to praiseworthy(3.75) (well made with special qualities)
+# 2= Disappointing (Passable but contains at least one significant flaw)
+# 1= Unpleasant (mostly unpalatable)
+# 
+choc_4$Ordinal_Rating <- cut(choc_4$Rating, 
+                             breaks = c(0, 2.3, 2.6, 2.8, 3.2, 3.4, 3.6, 3.8, 5), 
+                             include.lowest = TRUE,
+                             labels = c("Disappointing", "Passable", "Passable+", 
+                                        "Satisfactory", "Satisfactory+", 
+                                        "Praiseworthy-", "Praiseworthy", 
+                                        "Premium" ))
+table(choc_4$Ordinal_Rating, choc_4$Rating)
+#-----------------------------------------------------------------------------------
+# Finalize the analysis data set and look at it. 
+choc <- choc_4
+sort(table(choc$Bean_Type))
+sort(table(choc$Bean_Origin))
+head(choc)
+library(MASS)
+attach(choc)
+```
+
+  a). Use the function `polr` in the `MASS` library to fit  a null proportional odds logistic regression model to the `Ordinal_Rating`  response variable.  How many intercepts are in the null model?  What is their interpretation?
+
+***
+**Answer:**  
+
+```{r}
+fit_null <- polr(Ordinal_Rating ~ 1, data = choc, method = "logistic")
+fit_null
+summary(fit_null)
+```
+
+The model contains 7 intercepts and can be interpreted as the values of $\alpha$ in the model.  These values of alpha are the breakpoints between the 8 ordinal response categories.
+
+***
+
+  b). In addition to model (0) = null model, use `polr` to fit model (1) that includes a linear function of cocoa proportion  and model (2) that includes a quadratic function (`poly(Cocoa_Proportion, 2)`) of cocoa proportion. Summarize these models and explain their parameters. Of these two, which is the preferred model?
+
+***
+**Answer:**  
+
+```{r}
+#Fit model (1) - linear function of cocoa
+choc$Cocoa_Proportion <- -choc$Cocoa_Proportion
+fit_1 <- polr(Ordinal_Rating ~ Cocoa_Proportion, data = choc, method = "logistic")
+fit_1
+summary(fit_1)
+
+#Fit model (2) - linear and quadratic function of cocoa
+fit_2 <- polr(Ordinal_Rating ~ poly(Cocoa_Proportion,2), data = choc, method = "logistic")
+fit_2
+summary(fit_2)
+```
+
+```{r}
+anova(fit_2, fit_1, fit_null)
+```
+
+The first model is fit with cocoa proportion as the only predictor.  Because we have 8 ordinal rating categories we will have J-1 or 7 intercepts ($\alpha$'s) and 1 coefficient ($\beta$) for the cocoa proportion predictor.  The second model adds a quadratic term for cocoa proportion so in this model we have 2 predictors.  The model is then fit with the same number of intercepts, but has 2 coefficients for cocoa proportion and the cocoa proportion squared.  If we assume the larger model fits against the saturated model we can compare the two using the likelihood ratio drop in deviance test.  We completed this using the anova() function in r and find that our p value is very small.  So we would reject the null hypothesis and conclude that the larger model that contains the quadratic term is necessary to fit the data.
+
+***
+
+  c). After some experimentation, researchers decided on an additive model that included country of origin (`Bean_Origin`) and bean variety (`Criollo + Trinitario + Forastero`) as well as  the quadratic function of cocoa proportion.  Fit this model using `polr`.   
+
+***
+**Answer:**  
+
+```{r}
+choc$Criollo <- -choc$Criollo
+choc$Trinitario <- -choc$Trinitario
+choc$Forastero <- -choc$Forastero
+fit_3 <- polr(Ordinal_Rating ~ Bean_Origin + Criollo + Trinitario + Forastero + poly(Cocoa_Proportion,2), data = choc, method = "logistic")
+fit_3
+summary(fit_3)
+```
+
+***
+
+  d).  Use the model fitted in part (c) to answer the following question.  First, use `head(predict(fit, type = "probs"))` to see what the output of `predict` looks like for `polr` fits:
+
+```{r}
+fit_linear <- polr(Ordinal_Rating ~ Cocoa_Proportion, 
+               data = choc, method = "logistic")
+out <- predict(fit_linear, type = "probs")
+head(out)
+```
+Notice that the prediction gives, in each row, the probabilities for each of the eight ordinal categories.  If we wanted the probability that a chocolate was `Praiseworthy-` or better, we would sum probabilities in columns 6, 7, and 8: 
+```{r}
+Pminus_or_better <- apply(out[, 6:8], MAR = 1, FUN = "sum")
+head(Pminus_or_better)
+```
+For your fit from part (c), use `predict` on a fine grid of cocoa proportions, from 0.5 to 1.0, to compute the probability that a chocolate from `Madagascar` with `Trinitario` beans only is `Praiseworthy-` or better. 
+You can create the data set on which to predict as follows: 
+```{r}
+grid <- 1000
+cocoa_grid  <- seq(from = 0.5, to = 1.0, length.out = grid)
+pred_data <- data.frame(Cocoa_Proportion = -cocoa_grid)
+pred_data$Bean_Origin <- rep("Madagascar", grid)
+pred_data$Criollo     <- rep(0, grid)
+pred_data$Trinitario  <- rep(-1, grid)
+pred_data$Forastero   <- rep(0, grid)
+head(pred_data)
+```
+
+Plot the corresponding curve. Find the optimum cocoa proportion among your predictions, report its value, and add a vertical line to your plot at that point.   
+
+***
+**Answer:**  
+
+```{r}
+pred_data <- data.frame(pred_data)
+predict_out <- predict(fit_3, newdata = pred_data, type = "probs")
+head(predict_out)
+
+Pminus_or_better <- apply(predict_out[, 6:8], MAR = 1, FUN = "sum")
+head(Pminus_or_better)
+cocoa_grid[which.max(Pminus_or_better)]
+```
+
+```{r, warning=FALSE}
+choc_plot_df <- as.data.frame(cocoa_grid, Pminus_or_better)
+
+#optimum cocoa proportion
+cocoa_grid[which.max(Pminus_or_better)]
+
+ggplot(data = choc_plot_df, aes(x = cocoa_grid, y = Pminus_or_better)) +
+         geom_line(color = "blue", size = 2) +
+         labs(x = "Cocoa Proportion", y = "Probability Praiseworthy- or Better", 
+         title = "Probability Praiseworthy- or Better vs. Cocoa Proportion") +               
+         theme(plot.title = element_text(hjust = 0.5)) +
+         geom_vline(xintercept = cocoa_grid[which.max(Pminus_or_better)],
+                    linetype = 'dashed', color = 'green', size = 1) 
+```
+
+***
+\pagebreak
+3. Harbor seals in Alaska "haul out"" onto landing sites to rest and warm themselves.  While hauled out, they are relatively easy to count during aerial surveys:  see Figure 1. 
+
+![Harbor seals hauled out.](nmmlweb-harborseal-13.jpg)
+
+Ecologists are interested in determining an optimal date in late summer or fall to conduct counts, meaning a date on which maximum numbers of hauled-out harbor seals could be counted.  They consider a data set consisting of the count of `SEALS` by haul-out location (12 distinct sites, in the variable `LOCNUMBER`) and `DATE`, measured in days since August 15  (`DATE = 0` for August 15, `DATE = 1` for August 16, `DATE = 2` for August 17, etc.)   Historical count data across multiple years are in the data set `Harbor_Seals.csv`, available from `Canvas`.
+
+
+
+  a). To account for possible overdispersion, fit the following model using the quasi-Poisson family with log link:
+\[
+\log(\mbox{E[{SEALS}$_i\mid x_i$]})
+=\beta_0+\sum_{j=1}^{11}\beta_j\mbox{LOCNUMBER}_{ij}
++\beta_{12}\mbox{{DATE}}_i
++\beta_{13}(\mbox{{DATE}}_i)^2
+\]
+\[
+\mbox{Var({SEALS}$_i\mid {x}_i$)}
+=\psi\times\mbox{E[{SEALS}$_i\mid {x}_i$]}.
+\]
+Does the output of your fitted model suggest that  extra-Poisson variation is present in these data? Explain briefly.
+
+***
+**Answer:**  
+
+```{r}
+#read in seal data
+seal_data <- read.csv("Harbor_Seals.csv", header = TRUE)
+head(seal_data)
+attach(seal_data)
+
+#fit a quasi-Poisson model 
+fit_seal_qp <- glm(SEALS ~ factor(LOCNUMBER) + poly(DATE, 2), 
+               family = quasipoisson(link = log),
+               data = seal_data)
+summary(fit_seal_qp)
+```
+
+We see that extra-Poisson variation is present in these data.  The dispersion parameter for this model is 9.643431.  So we know that the standard deviations are inflated by a factor of $\sqrt(9.643431)$ which is roughly a factor of three.  This is significant.  We also note the range of values in the deviance residuals, which is very large and suggests that extra-Poisson variation exists.  We can plot the deviance residuals for further diagnostics and visualization of extra-Poissson variation.
+
+***
+
+  b). Further, use the following code (delete `eval = FALSE`) to plot the deviance residuals versus model predictions and add the usual horizontal guidelines at $\pm 2$ and $\pm 3$.   
+```{r}
+e <- residuals(fit_seal_qp, "deviance")
+m <- max(c(abs(range(e)), 3))
+plot(predict(fit_seal_qp, type = "link"), e, pch = 16, col = "blue", ylim = c(-m, m),
+xlab = "Predictions under GLM",
+ylab = "Deviance residual")
+abline(h = c(-2, 2), col = "red", lty = 2, lwd = 2)
+abline(h = c(-3, 3), col = "red", lty = 1, lwd = 2)
+``` 
+  
+ Do your residual diagnostics suggest that  extra-Poisson variation is present in these data? Explain briefly.
+
+***
+**Answer:**  
+
+The residual diagnostics do suggest extra-Poisson variation.  We see numerous deviance residuals outside of the +/- 2 and 3 bands.  Many more than we would expect to see.  We also note that the deviance residuals form a bit of a diverging shape as the prediction value increases.
+
+***
+
+  c). Use your fitted model to predict the number of hauled-out harbor seals at location 16, 33 days after August 15.
+  
+***
+**Answer:**  
+
+```{r}
+round(predict.glm(fit_seal_qp, newdata = list(LOCNUMBER = 16, DATE = 33), type = 'response'), 0)
+```
+
+***
+
+  d). Plot the predicted values from the above fit versus `DATE` and use your plot to address the ecologists' question about an optimum date for aerial surveys. Add a vertical line at the optimum date. Does your optimum date depend on `LOCATION`?  Why or why not?
+  
+
+***
+**Answer:**  
+
+```{r, warning=FALSE}
+#Use the predict function and the whole dataset
+pred_seals <- predict.glm(fit_seal_qp, type = 'response')
+pred_seals
+
+plot_df <- as.data.frame(pred_seals, DATE)
+
+ggplot(data = plot_df, aes(x = DATE, y = pred_seals)) +
+         geom_point(color = "red", size = 2) +
+         labs(x = "DATE", y = "Predicted Number of Seals", 
+         title = "Predicted Number of Seals vs. Date") +               
+         theme(plot.title = element_text(hjust = 0.5)) +
+         geom_vline(xintercept = seal_data$DATE[which.max(pred_seals)],
+                    linetype = 'dashed', color = 'green', size = 1) 
+         
+```
+
+Based on the optimum date on the plot it does not appear that the optimum date depends on location.  It appears that the optimum date is the same for all locations based on the where the individual location curves peak.
+
+***
+
+  e).  As an alternative to the quasi-likelihood approach, we could do Negative Binomial regression. A function to
+do this is `glm.nb` in the `MASS` library.  Fit the model.  Specify in particular the variance model for the negative binomial approach, and any unknown parameters.  
+
+
+***
+**Answer:**  
+
+```{r}
+library(MASS)
+
+fit_seals_nb <- glm.nb(formula = SEALS ~ factor(LOCNUMBER) + poly(DATE, 2), 
+                       data = seal_data)
+summary(fit_seals_nb)
+```
+
+The variance model for the negative binomial model is Var($\lambda$) = $\frac{\mu^2}{\theta}$.  In the negative binomial model we model the mean of a Poisson distribution $\lambda$ as being distributed Gamma($\mu$, $\theta$).  Therefore, we have 2 unknown parameters $\mu$ and $\theta$ to estimate from the data.
+
+***
+
+
+
+
+
+
+
+
+
+
+

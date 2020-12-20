@@ -1,0 +1,538 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+# Use echo = FALSE for Answer Key without R code, 
+# echo = TRUE for complete solutions.
+knitr::opts_chunk$set(echo = TRUE)
+library(epiR)
+```
+
+STAA552 Homework #2: Due Thursday November, 5th
+========================================================
+#### Name: Jon Dollard
+
+*********************************************************************************
+
+1. The following data are from the office of the attorney general for the state of Missouri.  These 2016 data detail traffic stops, subsequent searches of stopped drivers, and arrests of stopped and searched drivers,  by characteristics of driver (non-Hispanic white, non-Hispanic black, Hispanic).  Details are available at 
+<http://ago.mo.gov/home/vehicle-stops-report/2016-executive-summary>
+```{r}
+Race <-c("White", "Black", "Hispanic")
+Stops <- c(1212726, 279657, 34472)
+Searches <- c(67546, 24533, 2924)
+Arrests <- c(50730, 18443, 2455)
+d <- data.frame(Race, Stops, Searches, Arrests)
+```
+For this problem, imagine a data file containing records of all these traffic stops in Missouri in 2016.  There are more than 1.5 million records in the data file. Each record in the data file contains race of driver, search status, and arrest status.  Let $X$ denote race (`White`, `Black`, or `Hispanic`), $Y$ denote search status  (`search` or `no search`), and $Z$ denote arrest status (`arrest` or `no arrest`).
+
+If we pick one record at random from the data file, the probability that the driver is `White` is P$(X=$`White`)=`r d$Stops[1]/ sum(d$Stops)`. This is an exact value, not an estimate or approximation, for the experiment as described.
+
+a). Pick one record at random from the data file.   What is the probability that the driver is `White` and was searched? What is the probability that the driver is `Black` and was not searched? Express these probabilities formally in terms of $X$ and $Y$; that is, P($X=$??,$Y=$??)=???.  Recall from lecture that P($X=i,Y=j$) is shorthand notation for P($\{X=i\}\cap \{Y=j\}$). 
+
+***
+**Answer:**
+
+```{r}
+#Calculate the probability that the driver is White and was searched
+p_white <- d$Stops[1] / sum(d$Stops)
+p_searched <- sum(d$Searches) / sum(d$Stops)
+p_white * p_searched
+```
+P$(X = White, Y = Searched) =$ `r p_white * p_searched`
+
+```{r}
+#Calculate the probability that the driver is Black and was not searched
+p_black <- d$Stops[2] / sum(d$Stops)
+p_not_searched <- 1 - p_searched
+p_black * p_not_searched
+```
+P$(X = Black, Y = Not \ Searched) =$ `r p_black * p_not_searched`
+
+***
+
+b). Pick one record at random from the data file.  What is the probability that the driver was arrested?  Pick one record at random from the stopped Hispanics in the data file.   What is the probability that the driver was arrested? Pick one record at random from the searched Hispanics in the data file. What is the probability that the driver was arrested? Express these probabilities formally in terms of $X$, $Y$, and $Z$. 
+
+***
+**Answer:**
+
+```{r}
+#Calculate the probability that the driver was arrested from a random draw
+p_arrested <- sum(d$Arrests) / sum(d$Stops)
+p_arrested
+```
+
+P$(Z \ = \ Arrested) =$ `r p_arrested`
+
+```{r}
+#Calculate the probability that a Hispanic driver was arrested
+p_arrested_given_Hispanic <- d$Arrests[3] / d$Stops[3]
+p_arrested_given_Hispanic
+
+```
+
+P$(Z = Arrested| X = Hispanic) =$ `r p_arrested_given_Hispanic`
+
+```{r}
+#Calculate the probability that a Hispanic driver that was searched was arrested
+p_arrested_given_H_given_S <- d$Arrests[3] / d$Searches[3]
+p_arrested_given_H_given_S 
+
+```
+
+P$(Z = Arrested|Y = Searched|X = Hispanic) =$ `r p_arrested_given_H_given_S`
+
+***
+
+c). Pick one record at random from the searched Whites in the data file. What is the probability that the driver was arrested? Pick one record at random from the searched Blacks in the data file. What is the probability that the driver was arrested? Express these probabilities formally in terms of $X$, $Y$, and $Z$. 
+
+***
+**Answer:**
+
+```{r}
+#Calculate the probability that a White driver that was searched was arrested
+p_arrested_given_W_given_S <- d$Arrests[1] / d$Searches[1]
+p_arrested_given_W_given_S
+```
+
+P$(Z = Arrested|Y = Searched|X = White) =$ `r p_arrested_given_W_given_S`
+
+```{r}
+#Calculate the probability that a Black driver that was searched was arrested
+p_arrested_given_B_given_S <- d$Arrests[2] / d$Searches[2]
+p_arrested_given_B_given_S
+```
+
+P$(Z = Arrested|Y = Searched|X = Black) =$ `r p_arrested_given_B_given_S`
+
+***
+
+d). Pick one record at random from the data file.  What is the probability that the driver is searched?  Pick one record at random from the `White` drivers.  What is the probability that the driver is searched?  Pick one record at random from the `Black` drivers.  What is the probability that the driver is searched?  Pick one record at random from the `Hispanic` drivers.  What is the probability that the driver is searched?   Express all four probabilities formally in terms of $X$ and $Y$. 
+
+***
+**Answer:**
+
+```{r}
+#Calculate the probability that a driver is searched from a random draw of the data
+p_searched
+```
+
+P$(Y = Searched) =$ `r p_searched`
+
+```{r}
+#Calculate the probability that a White driver is searched
+p_searched_given_white <- d$Searches[1] / d$Stops[1]
+p_searched_given_white
+```
+
+P$(Y = Searched|X = White) =$ `r p_searched_given_white`
+
+```{r}
+#Calculate the probability that a Black driver is searched
+p_searched_given_black <- d$Searches[2] / d$Stops[2]
+p_searched_given_black
+```
+
+P$(Y = Searched|X = Black) =$ `r p_searched_given_black`
+
+```{r}
+#Calculate the probability that a Hispanic driver is searched
+p_searched_given_hispanic <- d$Searches[3] / d$Stops[3]
+p_searched_given_hispanic
+```
+
+P$(Y = Searched|X = Hispanic) =$ `r p_searched_given_hispanic`
+
+***
+
+e). What is the relative risk of search for stopped `Black` drivers compared to stopped `White` drivers?  What is the relative risk of search for stopped `Hispanic` drivers compared to stopped `White` drivers?  What is the relative risk of search for stopped `Black` drivers compared to stopped `Hispanic` drivers? Interpret these relative risks.
+
+***
+**Answer:**
+
+
+```{r}
+#Calculate the relative risk of search for stopped black drivers compared to white
+rr_bw <- p_searched_given_black / p_searched_given_white
+rr_bw
+```
+
+We can interpret this relative risk as a driver is about 1.6 times as likely to searched if they are a black driver than a white driver.
+
+
+```{r}
+#Calculate the relative risk of search for stopped hispanic drivers compared to white
+rr_hw <- p_searched_given_hispanic / p_searched_given_white
+rr_hw
+```
+
+We can interpret this relative risk as a driver is about 1.5 times as likely to searched if they are a hispanic driver than a white driver.
+
+```{r}
+#Calculate the relative risk of search for stopped black drivers compared to hispanic
+rr_bh <- p_searched_given_black / p_searched_given_hispanic
+rr_bh
+```
+
+We can interpret this relative risk as a black driver is about equally likely to be searched as a hispanic driver.
+
+***
+
+2. The following is and abbreviated description of a real study (*New England Journal of Medicine* 2000;342:145-53): 
+
+*A total of 9297 high-risk patients (55 years of age or older) who had evidence of vascular disease or diabetes plus one other cardiovascular risk factor and who were not known to have a low ejection fraction or heart failure were randomly assigned to receive ramipril (10 mg once per day orally) or matching placebo for a mean of five years. The primary outcome was a composite of myocardial infarction, stroke, or death from cardiovascular causes.*
+
+The randomization resulted in 4645 patients receiving ramipril and 4652 receiving placebo.  Of the ramipril group, 651 "reached the primary end point," meaning that they suffered myocardial infarction, stroke, or death from cardiovascular causes. Of these 651 patients, 282 died from cardiovascular causes.  Another 200 of the ramipril group died from noncardiovascular causes. 
+Of the placebo group, 826 reached the primary end point, of whom 377 died from cardiovascular causes. Another 192 of the placebo group died from noncardiovascular causes. 
+
+(a). Give the relative risk of reaching the primary end point for the ramipril group compared to the placebo group, along with an asymptotic 95 percent confidence interval. Use your results to complete the following statement, rounding to two decimal places: "A total of 651 patients who were assigned to receive ramipril (14.02 percent) reached the primary end point, as compared with 826 patients who were assigned to receive placebo (17.76 percent) (relative risk, ????; 95 percent confidence interval, ???? to ????)."  Is there evidence that ramipril reduces risk of the primary end point?  (Work with log relative risk and then exponentiate the point estimate and each endpoint of the confidence interval to return to the original scale.)  Do not use any non-trivial functions in `R` for this problem. 
+
+
+***
+**Answer:** 
+
+```{r}
+#calculate the proportion of patients that were given ramipril and reached the primary endpoint
+rho_ramipril_pe <- 651 / 4645
+rho_ramipril_pe
+
+#calculate the proportion of patients that were given placebo and reached the primary endpoint
+rho_placebo_pe <- 826 / 4652
+rho_placebo_pe
+
+#calculate the log relative risk
+log_rr_pe <- log(rho_ramipril_pe / rho_placebo_pe)
+log_rr_pe
+
+#calculate the 95 percent confidence interval
+n1_plus <- 4645
+n2_plus <- 4652
+log_lower <- log_rr_pe - 1.96 * sqrt(((1 - rho_ramipril_pe) / (rho_ramipril_pe * n1_plus)) 
+                                     + ((1 - rho_placebo_pe) / (rho_placebo_pe * n2_plus)))
+log_lower
+log_upper <- log_rr_pe + 1.96 * sqrt(((1 - rho_ramipril_pe) / (rho_ramipril_pe * n1_plus)) 
+                                     + ((1 - rho_placebo_pe) / (rho_placebo_pe * n2_plus)))
+log_upper
+
+#convert to original scale
+rr_pe <- round(exp(log_rr_pe), 2)
+rr_pe
+lower_ci_bound <- round(exp(log_lower), 2)
+lower_ci_bound
+upper_ci_bound <- round(exp(log_upper), 2)
+upper_ci_bound
+```
+
+"A total of 651 patients who were assigned to receive ramipril (14.02 percent) reached the primary end point, as compared with 826 patients who were assigned to receive placebo (17.76 percent) (relative risk, 0.79; 95 percent confidence interval, 0.72 to 0.87)."
+
+In this case because 1 isn't contained within the 95% confidence interval we would reject the null hypothesis and conclude that there is evidence that ramipril reduces the risk of the primary endpoint.
+
+***
+
+(b). This problem is nearly identical to (a), but instead of relative risk of reaching the primary end point, consider relative risk of cardiovascular death, and complete the following statement: "Treatment with ramipril reduced the rates of death from cardiovascular causes (???? percent, as compared with ???? percent in the placebo group; relative risk, ????; 95 percent confidence interval, ???? to ????)."  Again, work with log relative risk and then exponentiate the point estimate and confidence interval to return to the original scale.  Do not use any non-trivial functions in `R` for this problem. 
+
+***
+**Answer:** 
+
+```{r}
+#calculate the proportion of patients that were given ramipril and died from cardiovascular causes
+rho_ramipril_cd <- 282 / 4645
+rho_ramipril_cd
+
+#calculate the proportion of patients that were given placebo and died from cardiovascular causes
+rho_placebo_cd <- 377 / 4652
+rho_placebo_cd
+
+#calculate the log relative risk
+log_rr_cd <- log(rho_ramipril_cd / rho_placebo_cd)
+log_rr_cd
+
+#calculate the 95 percent confidence interval
+n1_plus <- 4645
+n2_plus <- 4652
+log_lower <- log_rr_cd - 1.96 * sqrt(((1 - rho_ramipril_cd) / (rho_ramipril_cd * n1_plus)) 
+                                     + ((1 - rho_placebo_cd) / (rho_placebo_cd * n2_plus)))
+log_lower
+log_upper <- log_rr_cd + 1.96 * sqrt(((1 - rho_ramipril_cd) / (rho_ramipril_cd * n1_plus)) 
+                                     + ((1 - rho_placebo_cd) / (rho_placebo_cd * n2_plus)))
+log_upper
+
+#convert to original scale
+rr_cd <- round(exp(log_rr_cd), 2)
+rr_cd
+lower_ci_bound <- round(exp(log_lower), 2)
+lower_ci_bound
+upper_ci_bound <- round(exp(log_upper), 2)
+upper_ci_bound
+```
+
+"Treatment with ramipril reduced the rates of death from cardiovascular causes (6.07 percent, as compared with 8.10 percent in the placebo group; relative risk, 0.75; 95 percent confidence interval, 0.65 to 0.87)."
+
+***
+
+(c). Finally, consider relative risk of non-cardiovascular death.  Write a one-sentence summary of the results like that in part (b), including point estimates of the death rates (in percent) and the point estimate and  95% confidence interval for relative risk.  Again, work with log relative risk and then exponentiate the point estimate and confidence interval to return to the original scale.  Do not use any non-trivial functions in `R` for this problem. 
+
+***
+**Answer:**
+
+```{r}
+#calculate the proportion of patients that were given ramipril and died from non cardiovascular causes
+rho_ramipril_ncd <- 200 / 4645
+rho_ramipril_ncd
+
+#calculate the proportion of patients that were given placebo and died from non cardiovascular causes
+rho_placebo_ncd <- 192 / 4652
+rho_placebo_ncd
+
+#calculate the log relative risk
+log_rr_ncd <- log(rho_ramipril_ncd / rho_placebo_ncd)
+log_rr_ncd
+
+#calculate the 95 percent confidence interval
+n1_plus <- 4645
+n2_plus <- 4652
+log_lower <- log_rr_ncd - 1.96 * sqrt(((1 - rho_ramipril_ncd) / (rho_ramipril_ncd * n1_plus)) 
+                                      + ((1 - rho_placebo_ncd) / (rho_placebo_ncd * n2_plus)))
+log_lower
+log_upper <- log_rr_ncd + 1.96 * sqrt(((1 - rho_ramipril_ncd) / (rho_ramipril_ncd * n1_plus)) 
+                                      + ((1 - rho_placebo_ncd) / (rho_placebo_ncd * n2_plus)))
+log_upper
+
+#convert to original scale
+rr_ncd <- round(exp(log_rr_ncd), 2)
+rr_ncd
+lower_ci_bound <- round(exp(log_lower), 2)
+lower_ci_bound
+upper_ci_bound <- round(exp(log_upper), 2)
+upper_ci_bound
+```
+
+***
+
+Treatment with ramipril did not reduce the rates of death from non cardiovascular causes (4.31 percent, as compared with 4.13 percent in the placebo group; relative risk, 1.04; 95 percent confidence interval, 0.86 to 1.27).
+
+3. **Obesity and heart disease:** The relationship between obesity and
+cardiovascular disease (CVD) is complicated. Some opponents to the theory that there
+is a causal link between the two cite the societal stress of being obese
+as a confounding factor that actually drives CVD. A six-year
+prospective study (D.E. Crews. Cardiovascular mortality in American Samoa. *Human Biology*, 1988) examined this idea, using data from
+America Samoa, where obesity is both common and socially desirable. The results were as follows: 
+```{r}
+samoa <- matrix(c(16, 2045, 7, 1044), nrow = 2, byrow = TRUE)
+colnames(samoa) <- c("CVD Death", "Other")
+rownames(samoa) <- c("Obese", "Not Obese")
+samoa
+```
+
+*Compute the following without using any nontrivial packages in `R`.*
+
+  a). Estimate the difference of proportions between the conditional
+probability of an obese Samoan dying of CVD and the conditional
+probability of a non-obese Samoan dying of CVD, and obtain the
+corresponding asymptotic 95% confidence interval. Is there evidence that obesity affects risk of CVD death in this population? Comment on
+whether you think the difference of proportions is the right comparison tool in this situation.
+
+***
+
+**Answer:** 
+
+```{r}
+#Calculate the relvant probabilities
+n_1_plus <- 2045 + 16
+n_2_plus <- 1044 + 7
+rho_1_ObeseCVD <- 16 / n_1_plus
+rho_1_ObeseCVD
+rho_2_nonObeseCVD <- 7 / n_2_plus
+rho_2_nonObeseCVD
+
+#Calculate the difference of proportions
+CVD_dop <- rho_1_ObeseCVD - rho_2_nonObeseCVD
+CVD_dop
+
+#Calculate the 95% confidence interval
+CI_95_lower_dop <- CVD_dop - 1.96 * sqrt(((rho_1_ObeseCVD * (1 - rho_1_ObeseCVD)) / n_1_plus) 
+                                         + ((rho_2_nonObeseCVD * (1 - rho_2_nonObeseCVD)) /                                                  n_2_plus))
+CI_95_lower_dop
+CI_95_upper_dop <- CVD_dop + 1.96 * sqrt(((rho_1_ObeseCVD * (1 - rho_1_ObeseCVD)) / n_1_plus) 
+                                         + ((rho_2_nonObeseCVD * (1 - rho_2_nonObeseCVD)) /                                                  n_2_plus))
+CI_95_upper_dop
+
+```
+
+In this test we see that the confidence interval includes 0.  Therefore we fail to reject the null hypothesis that the proportions of CVD are equal for obese and non obese people in this populations.  Thus, we don't have sufficient evidence that obesity affects the risk of CVD death in this population.  I don't think that the difference of proportions is the right comparison tool because we are dealing with small probabilities and the difference is very small.  It is hard to see just by inspection of the difference if the difference appears significant.
+
+***
+
+  b). Find the relative risk and associated asymptotic 95\% confidence
+interval.  Is there evidence that obesity affects risk of CVD death in this population?
+
+***
+
+**Answer:** 
+
+```{r}
+#Calculate the relative risk
+rr_CVD <- rho_1_ObeseCVD / rho_2_nonObeseCVD
+rr_CVD
+log_RR_CVD <- log(rr_CVD)
+log_RR_CVD
+
+#Calculate asymptotic 95% confidence interval
+log_lower_CI <- log_RR_CVD - 1.96 * sqrt(((1 - rho_1_ObeseCVD) / (rho_1_ObeseCVD * n_1_plus)) 
+                                         + ((1 - rho_2_nonObeseCVD) / (rho_2_nonObeseCVD *                                                   n_2_plus)))
+log_lower_CI
+log_upper_CI <- log_RR_CVD + 1.96 * sqrt(((1 - rho_1_ObeseCVD) / (rho_1_ObeseCVD * n_1_plus)) 
+                                         + ((1 - rho_2_nonObeseCVD) / (rho_2_nonObeseCVD *                                                   n_2_plus)))
+log_upper_CI
+
+#convert back to non log scale
+lower_CI_CVD <- exp(log_lower_CI)
+lower_CI_CVD
+upper_CI_CVD <- exp(log_upper_CI)
+upper_CI_CVD
+
+```
+
+We see by looking at the confidence interval associated with the log relative risk that zero is contained within the interval.  Therefore, we fail to reject the null hypothesis and conclude that we do not have sufficient evidence that obesity affects risk of CVD in this population.
+
+***
+
+
+  c). Find the odds ratio and associated asymptotic 95\% confidence
+interval. Is there evidence that obesity affects risk of CVD death in this population?
+
+***
+**Answer:** 
+
+```{r}
+#Calculate the odds
+odds_1 <- rho_1_ObeseCVD / (1 - rho_1_ObeseCVD)
+odds_1
+odds_2 <- rho_2_nonObeseCVD / (1 - rho_2_nonObeseCVD)
+odds_2
+odds_ratio <- odds_1 / odds_2
+odds_ratio
+log_odds_ratio <- log(odds_ratio)
+log_odds_ratio
+
+#Calculate the asymptotic 95% confidence interval
+n11 <- 16
+n12 <- 2045
+n21 <- 7
+n22 <- 1044
+log_lower_CI_odds <- log_odds_ratio - 1.96 * sqrt((1 / n11) + (1 / n12) + (1 / n21) + (1 / n22))
+log_lower_CI_odds
+log_upper_CI_odds <- log_odds_ratio + 1.96 * sqrt((1 / n11) + (1 / n12) + (1 / n21) + (1 / n22))
+log_upper_CI_odds
+
+#convert to non log scale
+lower_CI_odds <- exp(log_lower_CI_odds)
+lower_CI_odds
+upper_CI_odds <- exp(log_upper_CI_odds)
+upper_CI_odds
+```
+
+From the confidence interval we note that zero is contained within the interval.  Therefore we don't have sufficient evidence to reject the null hypothesis and conclude that we do not have sufficient evidence that obesity affects risk of CVD death in this population.
+
+***
+
+  d). Comment on the relationship between your answers in (b) and
+(c). Using the definition of relative risk RR and odds-ratio $\theta$,
+show why they exhibit this relationship. 
+
+***
+**Answer:** 
+
+The relative risk and odds ratio are very close.  If we look at the definition of the relative risk it is the ratio of the proportions $\frac{\rho_1}{\rho_2}$.  For the odds ratio we have $\frac{\dfrac{\rho_1}{1 - \rho_1}}{\dfrac{\rho_2}{1 - \rho_2}}$ by definition.  In the case of this population the values for $\rho_1$ and $\rho_2$ are very small; on the order of $10^{-3}$.  Therefore $1 - \rho_1$ and $1 - \rho_2$ are nearly 1 and the odds ratio simplifies to approximately the relative risk.
+
+***
+
+  e). Re-do the above analysis using the `epi.2by2` function in the `epiR` package in `R`. Clearly describe where to obtain the difference of proportions and confidence interval, relative risk and confidence interval, and odds ratio and confidence interval from the `epi.2by2` output.  
+
+***
+**Answer:** 
+
+```{r}
+epi.2by2(dat = as.table(samoa), method = "cohort.count", 
+   conf.level = 0.95, units = 100, outcome = "as.columns")
+```
+
+The difference of proportions comes from the Attrib risk * line (0.11 (-0.51, 0.73)).  The * note indicates that this result is per 100 population units.  Dividing this result by 100 to put it on a per 1 population unit we see that it is the same as our result from part (a).
+
+The relative risk point estimate and associated confidence interval is provided on the Inc risk ratio line (1.17 (0.48, 2.82)).  We see that this result is the same as what we found in part (b) after rounding to two decimal places.
+
+The odds ratio point estimate and associated confidence interval is provided on the Odds ratio line (1.17 (0.48, 2.85)).  This result also matches what we calculated in part (c) after rounding to two decimal places.
+
+***
+
+4.  Conservation biologists compared the distribution of bird species on two types of habitat: undisturbed `Remnant` habitat  and disturbed habitat that has been `Restored`. The scientific question is whether the `Restored` habitat is similar to the `Remnant` habitat, in the sense of having the same species distribution. The counts by species in each of 12 categories are given in the following table: 
+```{r, echo = FALSE}
+Species <- c("Ruby-Crowned_Kinglet", "White-Crowned_Sparrow", 
+             "Lincolns_Sparrow", "Golden-Crowned_Sparrow", 
+             "Bushtit", "Song_Sparrow", "Spotted_Towhee", 
+             "Bewicks_Wren", "Hermit_Thrush", "Dark-Eyed_Junco",
+             "Lesser_Goldfinch", "Other")
+
+x <- c(677,	198,	408,	260, 270,	187, 300,	89,	198,	91, 150,	50,
+       137,	32,	106,	48,	119,	24, 34,	39,	57,	15,	457,	125)
+x <- matrix(x, 2, 12)
+Remnant  <- x[1, ]
+Restored <- x[2, ]
+rownames(x) <- c("Remnant", "Restored")
+colnames(x) <- Species
+x
+```
+Conduct an appropriate test of row homogeneity using Pearson's chi-squared test.  Be sure to state the research question (in terms of the science), the null and alternative distributions (in terms of statistics), your computed test statistic, its distribution under the null hypothesis, your statistical conclusion, and your scientific conclusion in the context of the problem.  Compute Pearson's test "by hand," without using any higher-level `R` functions, and using the function `chisq.test` to check your answer.
+
+***
+
+**Answer:** 
+
+```{r}
+#Calculate some values we will need to copmlete the Pearson's chi-squred test
+I <- 12
+J <- 2
+df <- (I - 1) * (J - 1)
+df
+
+chi_sq_stat <- matrix(nrow = 2, ncol = 12)
+#Use a nested for loop to calculate the chi squared test statistic for each nij
+for (i in 1:2){
+  for(j in 1:12){
+    chi_sq_stat[i,j] <- ((((x[i,j]) - ((sum(x[i,]) * sum(x[,j])) / sum(x)))^2) / 
+                           ((sum(x[i,]) * sum(x[,j])) / sum(x)))
+  }
+}
+
+chi_sq_stat
+chi_sq_stat <- sum(chi_sq_stat)
+chi_sq_stat
+
+#Caluculate the p value using pchisq() and our test statistic
+p_val <- 1 - pchisq(chi_sq_stat, df = df)
+p_val
+
+#Use chisq.test to check the hand calculations
+chisq.test(x, correct = FALSE)
+
+```
+
+For this test we are interested to determine if the type of habitat (Remnant or Restored) affects the distribution of species.  The null hypothesis for our test is that the distribution of species does not depend on the type of habitat and that row independence or homogeneity exists.  The alternative hypothesis is the distribution of species depends on the type of habitat and that row independence or homogeneity does not exist.  We computed the chi-squared test statistic of 149.84 under the null hypothesis which is distributed $\chi^2$ with degrees of freedom (I-1)*(J-1) = 11.  Intuitively we see that 149.84 is a very large test statistic and that we are many standard deviations to the right of the mean under the null distribution.  Therefore, before even calculating the p value we expect it will be very small.  Indeed this is what we find when we perform the calculation.  The p value is <2.2e-16, essentially zero.  Therefore, we would reject the null hypothesis with very strong evidence and conclude that the type of habitat does affect the distribution of species.  Or put another way, the distribution of species depends on the type of habitat.
+
+***
+
+
+
+
+
+
+
+
+
+
+
+
+

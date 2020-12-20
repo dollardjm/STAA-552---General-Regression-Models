@@ -1,0 +1,73 @@
+---
+title: "Pearson and the Dice"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+*On the Criterion that a given System of Deviations from the Probable in the Case of a Correlated System of Variables is such that it can be reasonably supposed to have arisen from Random Sampling.* by Karl Pearson, F.R.S., University College, London. (1900).
+
+"The following data are due to Professor W. F. R. Weldon, F.R.S., and give the observed frequency of dice with 5 or 6 points when a cast of twelve dice was made 26,306 times:"
+```{r dice}
+n_obs <- 26306
+observed  <- c(185, 1149, 3265, 5475, 6114, 5194, 3067, 1331, 403, 105, 14, 4, 0)
+sum(observed) - n_obs # check that this is 26306
+```
+If the dice are all fair, then these data are 26,306 observations of Binomial(12, 1/3), summarized in one table: how many 0's, 1's,..., 12's?  In this case, 12 means all 12 dice came up 5 or 6. 
+
+Under the null hypothesis that the dice are all fair, we can also think of this as one giant multinomial with 26,306 trials and a $13\times 1$ probability vector,
+```{r}
+pi_13 <- dbinom(0:12, size = 12, prob = 1 / 3)
+round(pi_13, 4)
+```
+The result of this giant multinomial trial would be one  $13\times 1$ vector with entries that sum to 26,306, like our data set.  
+
+Could our data set have come from this hypothesized multinomial?  
+What entries would we expect in a data vector that came from the hypothesized multinomial? Multiply the number of trials ($n=26306$) by the $\pi$-vector:
+```{r}
+expected  <- n_obs * pi_13
+round(expected, 2)
+```
+Now compare our *observed* data to *expected* in a plot: 
+```{r}
+plot(c(0:12, 0:12), c(observed, expected), type = "n", 
+     xlab = "Number of Successes", ylab = "Frequency")
+lines(0:12, observed, type = "h", lwd = 2, col = "blue")
+lines(0:12, expected, lwd = 2, col = "magenta")
+```
+
+This looks quite close, but let's conduct a formal test.  We compute Pearson's chi-square test statistic,
+$$
+X^2=\sum_{k=1}^c\frac{\left\{(\mbox{observed count})_k-(\mbox{expected count})_k\right\}^2}{(\mbox{expected count})_k}.
+$$
+
+
+We know from theory that $X^2$ is asymptotically $\chi^2_{c-1}$ with $c=13$ under the null hypothesis that the dice are all fair:
+```{r}
+X2 <- sum((observed - expected) ^ 2 / expected)
+X2
+1 - pchisq(X2, df = 13 - 1)
+```
+What is the mean of this $\chi^2$ distribution?  What is its standard deviation?  Does the test statistic seem large?
+
+
+We can also compute this test statistic and its p-value using the `chisq.test` function in `R`: 
+```{r}
+chisq.test(observed,  p = dbinom(0:12, size = 12, prob = 1 / 3))
+```
+We get the same answers we did "by hand" above.  What do we conclude?  Why?
+
+As an alternative to the asymptotic $\chi^2_{c-1}$ approximation, we could 
+(1) simulate the null hypothesis multinomial many, many times; (2) compute Pearson's test statistic for each simulated multinomial; and (3) see how many of our simulated realizations are as large or larger than our observed value of `r X2`. 
+
+```{r}
+chisq.test(observed,  p = dbinom(0:12, size = 12, prob = 1 / 3), simulate.p.value = TRUE)
+```
+It looks like Pearson test statistics as large as the one we observed are really unusual under the null hypothesis. 
+

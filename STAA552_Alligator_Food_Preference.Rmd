@@ -1,0 +1,130 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+STAA552 Handout:  Alligator Food Preference 
+========================================================
+#### Jay Breidt, Department of Statistics, Colorado State University
+
+
+
+**From Agresti 8.1.2.** $N = 219$ alligators were trapped from four Florida lakes (Hancock, Oklawaha, Trafford, George) and their stomach contents were examined. Primary food source for the $i$th alligator was classified as $Y_i\in\{\mbox{fish,bird,invertebrate,reptile,other}\}$.
+In addition, $M_i = 1$ for male, 0 for female and $S_i = 1$ for small ($\le 2.3$m) and
+0 for large were recorded.
+```{r, warning = FALSE}
+library(nnet)    # has the function multinom
+library(vcdExtra)# contains the alligator data set
+data(Alligator)  # get the alligator data from the vcdExtra package
+names(Alligator)
+head(Alligator)
+dim(Alligator)
+```
+Notice that instead of one record per alligator, the data are grouped, so that there are 7 small, male, Hancock alligators that prefer fish. We will account for this grouping in the modeling by using a `weights` statement.
+
+Model the data as 
+$$
+Y_i\sim\mbox{independent Multinomial}\left(1;\left[\pi_F(x),\pi_B(x),\pi_I(x),\pi_R(x),\pi_O(x)\right]\right)
+$$
+for $i=1,2,\ldots,219$. Using the baseline-category approach, choose `bird` as baseline and fit several models.
+```{r}
+# Saturated model.
+fitS <- multinom(food ~ lake * size * sex, data = Alligator, weights = count)	
+# Null model.
+fit0 <- multinom(food ~ 1, data = Alligator, weights = count)  			
+fit1 <- multinom(food ~ sex, data = Alligator, weights = count) 			
+fit2 <- multinom(food ~ size, data = Alligator, weights = count)  			
+fit3 <- multinom(food ~ lake, data = Alligator, weights = count)  		
+fit4 <- multinom(food ~ size + lake, data = Alligator, weights = count) 		
+fit5 <- multinom(food ~ size + lake + sex, data = Alligator, weights = count) 	
+```
+Look at a particular model fit:
+```{r}
+summary(fit5)
+```
+Reproduce Table 8.2, column 2 of Agresti.
+```{r}
+fit0$deviance - fitS$deviance # null deviance
+fit1$deviance - fitS$deviance # sex only
+fit2$deviance - fitS$deviance # size only
+fit3$deviance - fitS$deviance # lake only
+fit4$deviance - fitS$deviance # lake + size
+fit5$deviance - fitS$deviance # sex + lake + size
+```
+The small difference between model 4 (dropping `sex`) and model 5 suggests
+that the model can be simplified. The drop-in-deviance test is
+```{r}
+fit4$deviance-fit5$deviance
+```
+to be compare to $\chi^2_4$; dropping `sex` saves one parameter in each of the $J-1$ non-baseline categories, hence 4 degrees of freedom.  Yes, we can simplify. 
+
+Now collapse over `sex` to reproduce Table 8.2, column 6 of Agresti:
+```{r}
+# Saturated model:
+fitS <- multinom(food ~ lake * size, data = Alligator, weights = count)	
+# Null model:
+fit0 <- multinom(food ~ 1, data = Alligator, weights = count)  			
+fit1 <- multinom(food ~ size, data = Alligator, weights = count)
+fit2 <- multinom(food ~ lake, data = Alligator, weights = count)
+fit3 <- multinom(food ~ size + lake, data = Alligator, weights = count)
+fit0$deviance - fitS$deviance # null
+fit1$deviance - fitS$deviance # size only
+fit2$deviance - fitS$deviance # lake only
+fit3$deviance - fitS$deviance # size + lake
+```
+Think about degrees of freedom for these models.  The null model says there are no differences among lakes or sizes, so only one probability distribution over the five classes (`fish`, `invert`, `other`, `reptile` and `bird`) is necessary.  This requires four parameters, since the probabilities sum to one, and `bird` as baseline is the category without a separate parameter:
+```{r}
+coef(fit0)
+```
+The saturated model has 32 parameters: 4 each for 4 lakes times 2 size classes.  Hence the null model has $32 - 4 = 28$ residual degrees of freedom.  
+
+The `size` only model has two distributions, one for small alligators and one for large alligators (default), hence 8 parameters and 24 residual df:
+```{r}
+coef(fit1)
+```
+Similiarly, the `lake` only model has four distributions, one for each lake (with Lake George as default), hence uses 16 df and has 16 residual df: 
+```{r}
+coef(fit2)
+```
+
+Finally, the `size + lake` model is additive: it uses 20 parameters (either 16 lake parameters to get 4 lake distributions, which are then shifted by 4 size parameters;  or 8 size parameters to get 2 size distributions, which are then shifted by 12 lake parameters) and hence has 12 residual df: 
+```{r}
+coef(fit3)
+```
+Among these non-saturated models, `fit3` is the largest model and has the smallest residual deviance (as it must).  Is it better than the next best model, `fit2`? Or could we simplify the model? Drop-in-deviance is 
+```{r}
+fit2$deviance - fit3$deviance
+```
+on $16 - 12 = 4$ df, with p-value 
+```{r}
+1 - pchisq(fit2$deviance - fit3$deviance, df = 4)
+```
+so reject the proposed simplification.
+
+If you are a small alligator, what is your food preference relative to a large alligator?
+
+Finally, do some probability calculations, both with "predict" and via direct computations.  Recall that `bird` is the baseline and look at the default probabilities, which would be for a large alligator in Lake George: 
+```{r}
+tmp <- c(0, coef(fit3)[, 1]) # 0 for bird and Lake George coefficients.
+exp(tmp) / sum(exp(tmp))
+predict(fit3,
+        type = "probs",
+        newdata = data.frame(size = "large", lake = "George"))
+```
+
+But we want Lake Hancock, so we shift the Lake George coefficients.  We want the default, large alligator, so we don't use the `small` coefficients in column 2:  
+
+```{r}
+tmp <- c(0, coef(fit3)[, 1] + coef(fit3)[, 3])
+exp(tmp) / sum(exp(tmp))
+predict(fit3,
+        type = "probs",
+        newdata = data.frame(size = "large", lake = "Hancock"))
+```
+The above computations reproduce the results on Agresti, page 297.
+
+
+What if we wanted a small alligator in Lake George?  
+
+What if we wanted a small alligator in Lake Trafford?

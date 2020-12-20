@@ -1,0 +1,139 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+STAA552 Handout: Teratology
+========================================================
+#### Jay Breidt, Department of Statistics, Colorado State University
+
+This example comes from **Agresti 4.7.4**.  "Teratology is the study of
+abnormalities of physiological development."
+
+This study considered pregnant female rats on iron-deficient diets: 
+
+  * Treatment Group 1 (un-treated except for placebo injections)
+
+  * Treatment Group 2 (iron supplement injection on days 7 and 10)
+
+  * Treatment Group 3 (iron supplement on days 0 and 7)
+
+  * Treatment Group 4 (weekly iron supplement).
+
+For the $g$th treatment group, we have litters $i=1,2,\ldots,N_g$, where the $i$th litter is of size $n_{gi}$.  Initial assumption is that the number of dead fetuses for the $i$th litter of the $g$th treatment group is $y_{gi}\sim$Binomial$(n_{gi},\pi_g)$.
+
+There are $\sum_{g=1}^4N_g=58$ litters.  In this case, we have $N=58$ binomial observations, with different sample sizes $n_{gi}$ for each.  Read in the data and display it:
+```{r}
+setwd("C:/Users/jbreidt/Dropbox/STAA552/STAA552 Handouts")
+d <- read.table("Data/Teratology_Agresti_Table_4.7.txt", header = TRUE)
+head(d)
+plot(d$treatment, d$y / d$n, pch = 16, col = "blue", xaxt = "n", 
+  xlab = "Treatment Group",
+  ylab = "Proportion of Dead Rat Fetuses")
+axis(side = 1, at = 1:4, 
+     labels = c("Low Iron", "Day 7&10", "Day 0&7", "Weekly"))
+```
+
+
+In this case, we have $N=58$ binomial observations, with different sample sizes $n_{gi}$ for each.  The saturated model has 58 parameters and gives
+$$
+\hat\theta_{gi}=\frac{\mbox{number dead in litter}}{\mbox{number in litter}}
+$$
+for $i=1,2,\ldots,58$.  We can fit the saturated model and see that it fits perfectly, but first we put the data into one of the standard input forms for binomial glm: a matrix with one column of successes and one column of failures.  We are dropping the intercept there (with `-1`) so that every litter has its own parameter:
+```{r}
+sat <-
+  glm(cbind(y, n - y) ~ -1 + factor(litter),
+  family = binomial(link = logit),
+  data = d)
+  summary(sat)
+```
+And the saturated model reproduces the simple proportions:
+```{r}
+plot(d$treatment, d$y / d$n, pch = 16, col = "blue", xaxt = "n",
+  xlab = "Treatment Group",
+  ylab = "Proportion of Dead Rat Fetuses" )
+  axis(side = 1, at = 1:4, 
+       labels = c("Low Iron", "Day 7&10", "Day 0&7", "Weekly"))
+  points(d$treatment, predict.glm(sat, type = "response"), 
+         pch = 5, col = "magenta")
+```
+
+Now we fit a simpler GLM than the saturated model, by letting each treatment have its own effect instead of each litter.  This means there are only four parameters instead of 58.    Specifically, the formula gives `y` = dead, `n-y` = alive as a function of iron supplement `treatment`, a categorical variable with
+four levels.  The model is expressed with an intercept and three dummy variables.
+Fisher Scoring is the iterative numerical optimization method used to get the
+parameter estimates.
+```{r}
+out <- glm(cbind(y, n - y) ~ factor(treatment), 
+           family = binomial(link = logit), data = d)
+summary(out)
+```
+
+Plot the probabilities from the GLM fit along with the litter-level estimated probabilities:
+```{r}
+plot(d$treatment, d$y / d$n, pch = 16, col = "blue", 
+     xlab = "Treatment Group", 
+     ylab = "Proportion of Dead Rat Fetuses", xaxt = "n")
+axis(side = 1, at = 1:4, 
+     labels = c("Low Iron", "Day 7&10", "Day 0&7", "Weekly"))
+fitted_prob <- predict.glm(out, type = "response")
+points(d$treatment, fitted_prob, pch = 17, col = "red")
+```
+
+The fitted probabilities (red triangles) track the empirical proportions (blue dots) quite well, but the null hypothesis of adequate model fit with four parameters is strongly rejected:
+```{r}
+pchisq(out$deviance, df = 54, lower.tail = F)
+```
+
+Let's analyze the Pearson residuals to understand the lack-of-fit. 
+```{r}
+# Residual diagnostic plot
+e <- residuals(out, "pearson")
+range(e) # Compare to deviance residuals
+e_by_hand <- (d$y - d$n * fitted_prob) / 
+  sqrt(d$n * fitted_prob * (1 - fitted_prob))
+range(e - e_by_hand) # check that our "hand" calculations agree with R
+m <- max(c(abs(range(e)), 3))
+plot(predict(out), e, pch = 16, col = "blue", ylim = c(-m, m), 
+     xlab = "Predicted logit under GLM", 
+     ylab = "Pearson residual")
+abline(h = c(-2, 2), col = "red", lty = 2, lwd = 2)
+abline(h = c(-3, 3), col = "red", lty = 1, lwd = 2)
+```
+
+There is clear evidence of overdispersion here.  What might explain it?
+
+Let's compute the Pearson statistic for model lack-of-fit and estimate the dispersion parameter, remembering that it would be close to one in the absence of overdispersion:
+```{r}
+obs_dead <- d$y             # observed dead
+exp_dead <- d$n*fitted_prob # expected dead
+obs_live <- d$n - d$y
+exp_live <- d$n * (1 - fitted_prob)
+X2 <- sum((obs_dead - exp_dead)^2 / exp_dead + 
+            (obs_live - exp_live)^2 / exp_live)
+X2 # Pearson statistic
+df <- length(d$litter) - 4
+pchisq(X2, df = df, lower.tail = F) # p-value for Pearson test of null that GLM fits
+phi_hat <- X2 / df # estimated overdispersion parameter
+phi_hat
+```
+
+Now fit the model using quasi-likelihood instead of likelihood: 
+```{r}
+out_quasi <- glm(cbind(y, n - y) ~ factor(treatment), 
+                 family = quasibinomial(link = logit), data = d)
+summary(out_quasi)
+```
+Notice that `Dispersion parameter for quasibinomial family` is exactly what we computed "by hand" above: the estimated dispersion parameter $\widehat\phi=X^2/(N-4)$, which is used to account for overdispersion by modifying the standard errors of the original binomial fit:
+```{r}
+summary(out)$coefficients[, 2] # standard errors from original fit
+summary(out)$coefficients[, 2] * sqrt(phi_hat) # multiplied by sqrt(phi_hat)
+summary(out_quasi)$coefficients[, 2] # standard errors from quasi-likelihood fit
+```
+The standard errors are increased---nearly doubled---to account for the overdispersion.  Similarly, the t-statistics of the original binomial fit are modified: 
+```{r}
+summary(out)$coefficients[, 3] # t-statistics from original fit
+summary(out)$coefficients[, 3] / sqrt(phi_hat) # divided by sqrt(phi_hat)
+summary(out_quasi)$coefficients[, 3] # t-statistics from quasi-likelihood fit
+```
+The t-statistics are now still significant, but are not as large as those that failed to account properly for the overdispersion. 

@@ -1,0 +1,538 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+# Use echo = FALSE for Answer Key without R code, 
+# echo = TRUE for complete solutions.
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+STAA552 Homework #1: Due Thursday, October 29
+========================================================
+#### Name: Jon Dollard
+#### 
+
+0. This homework assignment is written in R Markdown in the hopes that you will open this document in RStudio, knit the document to run the R code provided, answer the questions, add your own R code as necessary, and turn in one final, knitted, seamless document with all code, numerical output, graphical output, and documentation in one place. Read Sections 1.1, 1.2, 1.3, 1.4 (you can skip 1.4.4 if you like), 1.5.1--1.5.5 and 2.1 of Agresti.  Many of the problems in this assignment are tied directly to the reading, so refer back and forth frequently. 
+
+
+**For some of these problems, code is already provided, and you just need to run the code and comment on the output.  These pieces of code will often be useful in other problems.**
+
+1. The Heart Protection Study was a randomized controlled trial carried out in the United Kingdom in the 1990s.  In this study, $n_1=10267$ people were randomized to receive a daily placebo pill and the other $n_2=10269$ were randomized to receive a daily statin (a cholesterol-lowering drug).  After five years, 585 of the placebo group and 442 of the statin group had suffered a stroke.
+
+(a). Simulate the placebo arm of the Heart Protection Study.  Treat the empirical proportion of strokes as the true proportion of strokes: $\rho_1=585/n_1$.    Then use the following code to set your random number seed to 552 and simulate 10,000 independent replicates of the random variable $Y_1\sim$ Binomial($n_1,\rho_1$): these represent 10,000 simulated realizations of the number of strokes in the placebo trial.   Verify that, to a good approximation, the sample mean of the 10,000 replicates (also known as the Monte Carlo mean) is $n_1\rho_1$ and the sample variance (or Monte Carlo variance) of the 10,000 replicates is $n_1\rho_1(1-\rho_1)$:
+```{r}
+nreps <- 10000
+n_1 <- 10267
+rho_1 <- 585 / n_1
+set.seed(552)
+Y_1 <- rbinom(nreps, size = n_1, prob = rho_1)
+```
+*Note: Try to write nicely-formatted R code, just like you try to write nicely-punctuated English.  See <http://adv-r.had.co.nz/Style.html> for a simple style guide. In particular, notice above: meaningful names, space after commas (just like English), `<-` (not `=`) for assignment, and spaces around operators like `=`, `<-`, `+`, `-`, etc.*
+
+
+***
+
+**Answer:**  
+
+```{r}
+#Calculate and display the theoretical mean
+t_mean <- n_1 * rho_1
+t_mean
+
+#Calculate and display the theoretical variance
+t_var <- n_1 * rho_1 * (1 - rho_1)
+t_var
+
+#Calculate and display the monte carlo mean for Y1
+mc_mean_Y1 <- mean(Y_1)
+mc_mean_Y1
+
+#Calculate and display the monte carlo variance of Y1
+mc_var_Y1 <- var(Y_1)
+mc_var_Y1
+
+```
+
+We can see from the results that the simulated mean and variance is quite close to the true proportion
+
+***
+
+(b). Use the following code to plot the true probability mass function for Binomial($n_1,\rho_1$) [equation (1.1) of Agresti] and add to your plot the empirical distribution of your 10,000 replicates.  After running this code, comment briefly on the quality of the agreement between the empirical and theoretical distributions. 
+
+```{r}
+# plot over a useful range:
+h <- min(Y_1):max(Y_1)
+
+#plot the replicates from (a) in green
+hist(Y_1, col = "green", breaks = 75, freq = FALSE)
+
+#changed the code slightly to overlay the density on the replicates histogram
+lines(h, dbinom(h, size = n_1, prob = rho_1), 
+     ylab = "Probability",
+     xlab = "Number of strokes under placebo",
+     type = "b", pch = 16, lwd = 3, col = "magenta")
+lines(sort(unique(Y_1)), table(Y_1) / nreps, type = "h", lwd = 3, col = "blue")
+
+#add my own code to plot the replicates from part (a)
+hist(Y_1, col = "green", breaks = 75, freq = FALSE)
+```
+
+***
+
+**Answer:** Looking at both the overlayed plot and the histogram below we see very good agreement between the empirical and theoretical distributions. 
+
+***
+
+
+(c). For the placebo distribution, the success probability is small but the number of trials is very large, suggesting that the normal distribution should be a good approximation to the binomial distribution.  By running the code chunks below, check the quality of the normal approximation in three ways: (i) histogram of simulated results compared to theoretical normal density; (ii)  empirical cdf of simulated results compared to theoretical normal cdf; and (iii)  quantile-quantile plot of simulated results compared to theoretical normal quantiles.  Comment on the quality of the normal approximation. 
+
+
+(i) Histogram compared to density:  
+```{r}
+# freq=FALSE is used so that the histogram has relative frequencies (proportions)
+# instead of frequencies (counts):
+hist(Y_1, col = "lightblue", freq = FALSE, 
+     xlab = "Number of strokes under placebo")
+# fine grid of points on which to plot normal approximation
+l <- seq(from = min(Y_1), to = max(Y_1), length.out = 1000)
+lines(l, dnorm(l, mean = n_1 * rho_1,
+              sd = sqrt(n_1 * rho_1 * (1 - rho_1))),
+      col = "blue", lwd = 3)
+```
+
+(ii) Empirical cdf compared to theoretical cdf: 
+```{r}
+plot(ecdf(Y_1), lwd = 3, xlab = "Number of strokes under placebo")
+lines(l, pnorm(l, mean = n_1 * rho_1,
+              sd = sqrt(n_1 * rho_1 * (1 - rho_1))),
+      col = "blue", lwd = 3)
+```
+
+(iii) Empirical quantiles compared to theoretical quantiles:
+```{r}
+qqnorm(Y_1)
+qqline(Y_1, col = "red", lwd = 2) # make the line a little wider
+```
+
+***
+
+**Answer:** We can see from the overlaying the theoretical normal distribution to a histogram of the empirical evidence that it is a very close match visually.  The CDF comparison also shows that the normal approximation is good for this data.  The Q-Q plot for the theoretical normal distribution and the empirical data quantiles is very close.  There is a slight tail on the left side of the plot, but overall the plot suggests that the normal distribution is a good approximation. 
+
+***
+
+
+(d). Now consider the statin arm of the trial.  Use the empirical proportion of strokes in the real trial as the true proportion of strokes: $\rho_2=(\mbox{statin strokes})/n_2$. Set your random number seed to 1877 and simulate 10,000 independent replicates of the random variable $Y_2\sim$ Binomial($n_2,\rho_2$): these represent 10,000 simulated realizations of the number of strokes under the statin treatment.  Then, using your placebo simulation from above and your statin simulation, estimate the difference of proportions, $\rho_1-\rho_2$, for each of your 10,000 simulated studies. 
+Compute the empirical mean of your 10,000 simulated estimates and compare to their theoretical mean, $\rho_1-\rho_2$.  Compute the empirical variance of your 10,000 simulated estimates and compare to their theoretical variance, 
+\[
+\frac{\rho_1(1-\rho_1)}{n_1}+\frac{\rho_2(1-\rho_2)}{n_2}
+\]
+Finally, assess the approximate normality of your estimates by using the three comparisons above  (histogram vs. density, empirical cdf vs. cdf, and quantile-quantile plot).
+
+
+***
+
+**Answer:**
+
+```{r}
+#Using some code from part (a) with modifications for the statin arm of the trial
+n_2 <- 10269
+rho_2 <- 442 / n_2
+set.seed(1877)
+Y_2 <- rbinom(nreps, size = n_2, prob = rho_2)
+
+#Calculate the empirical difference of proportions
+rho_1_hat <- Y_1 / n_1
+rho_2_hat <- Y_2 / n_2
+dop <- rho_1_hat - rho_2_hat
+
+#Calculate the empirical mean differnce of proportions and display it
+emp_mean_dop <- mean(dop)
+emp_mean_dop
+
+#Calculate the theoretical mean and display it
+theor_mean_dop <- rho_1 - rho_2
+theor_mean_dop
+
+#Calculate the empirical variance for the difference of proportions and display it
+var_dop <- var(dop)
+var_dop
+
+#Calculate the theoretical variance for the difference of proportins and display it
+theor_var_dop <- ((rho_1 * (1 - rho_1)) / n_1) + ((rho_2 * (1 - rho_2)) / n_2)
+theor_var_dop
+
+#Use the histogram code from above for Y_2
+# freq=FALSE is used so that the histogram has relative frequencies (proportions)
+# instead of frequencies (counts):
+hist(dop, col = "lightblue", freq = FALSE, breaks = 50, 
+     xlab = "Difference of Proportions")
+# fine grid of points on which to plot normal approximation
+l <- seq(from = min(dop), to = max(dop), length.out = 1000)
+lines(l, dnorm(l, mean = theor_mean_dop,
+              sd = sqrt(((rho_1 * (1 - rho_1)) / n_1) + ((rho_2 * (1 - rho_2)) / n_2))),
+              col = "blue", lwd = 3)
+
+#Use the empirical cdf code from above for Y_2
+plot(ecdf(dop), lwd = 3, xlab = "Difference of Proportions")
+lines(l, pnorm(l, mean = theor_mean_dop,
+              sd = sqrt(((rho_1 * (1 - rho_1)) / n_1) + ((rho_2 * (1 - rho_2)) / n_2))),
+              col = "blue", lwd = 3)
+
+#Use the Q-Q code from above for Y_2
+qqnorm(dop)
+qqline(dop, col = "red", lwd = 2) # make the line a little wider
+
+```
+
+***
+
+(e). Use the original (not simulated) data as described in the problem to give a point estimate and asymptotic 95% confidence interval for the difference of proportions. Use your interval to test the null hypothesis that $\rho_1=\rho_2$ against the alternative that the probabilities are not equal.  Given the results of your test, what do you conclude scientifically about the effect of the statin treatment?
+
+
+***
+
+**Answer**
+
+```{r}
+#Calculate the difference of proportions using the original data
+d_o_p <- rho_1 - rho_2
+d_o_p
+
+#Calculate the confidence interval using asymptotic 95% CI
+Asy_CI_upper <- d_o_p + 1.96 * sqrt(((rho_1 * (1 - rho_1)) / n_1) + ((rho_2 * (1 - rho_2)) / n_2))
+Asy_CI_lower <- d_o_p - 1.96 * sqrt(((rho_1 * (1 - rho_1)) / n_1) + ((rho_2 * (1 - rho_2)) / n_2))
+Asy_CI_upper
+Asy_CI_lower
+  
+```
+
+Our null hypothesis is $H_0$: $\rho_1=\rho_2$, therefore the under the null hypothesis $\rho_1$ - $\rho_2$ = 0.  Since the confidence interval does not contain zero we can reject $H_0$ and conclude that $\rho_1$ does not equal $\rho_2$.  In the context of this problem we can conclude that the effect of taking the statin is effective in reducing the rate of strokes.
+***
+
+(f). Use the delta method to verify that 
+\[
+\mbox{Var}\left(\frac{\hat\rho_1}{\hat\rho_2}\right)\simeq\frac{\rho_1(1-\rho_1)}{\rho_2^2n_1}
++\frac{\rho_1^2\rho_2(1-\rho_2)}{\rho_2^4n_2}
+\]
+(you do not need to show your work, but make sure you can do this problem.)  Compare the Monte Carlo variance of your 10,000 replicate estimates of relative risk to this theoretical variance approximation.
+
+***
+
+**Answer**
+
+```{r}
+#Calculate the theoretical variance of the relative risk
+rr_var_theo <- ((rho_1 * (1 - rho_1))/((rho_2^2)*n_1)) + (((rho_1^2) * rho_2 * (1 - rho_2))/((rho_2^4)*n_2))
+rr_var_theo
+
+rr_var_mc <- var(rho_1_hat / rho_2_hat)
+rr_var_mc 
+```
+
+The theoretical variance approximation using the delta method is very close to the calculated Monte Carlo variance.
+
+***
+
+(g). Assess the approximate normality of your 10,000 estimated relative risks by using a quantile-quantile plot.  
+
+***
+
+**Answer:**
+
+```{r}
+#Calculate the relative risk of the replicates
+RR_replicates <- rho_1_hat/rho_2_hat
+
+#Construct a Q-Q plot to assess normality 
+qqnorm(RR_replicates)
+qqline(RR_replicates, col = "red", lwd = 2) # make the line a little wider
+
+```
+
+The normal quantiles show that approximate normality may not be a good assumption for the relative risk in this trial.  We see tails at both the lower and upper end of the quantiles, which suggest that the underlying assumptions of normality may not hold.
+
+***
+
+(h). As an alternative to relative risk, we can consider the log relative risk (`log` in `R` is natural log, also denoted ln, and is standard in statistics).  Assess the approximate normality of your log relative risk estimates by using a quantile-quantile plot.  
+
+***
+
+**Answer:**
+
+```{r}
+#Calculate the log relative risk and assess approximate normality assumption
+log_RR_replicates <- log(rho_1_hat/rho_2_hat)
+
+#Construct a Q-Q plot to assess normality 
+qqnorm(log_RR_replicates)
+qqline(log_RR_replicates, col = "red", lwd = 2) # make the line a little wider
+```
+
+The log transformation of the relative risk results in a Q-Q plot that appears to be much closer to the normal quantiles than the non transformed relative risk.  This gives us greater confidence that the assumption of asymptotic normality holds for the log relative risk of this data.  We would want to use the log relative risk for hypothesis testing and the creation of confidence intervals since the underlying assumption of asympototic normality is a better approximation to the log relative risk than the relative risk.
+
+***
+
+2. **Multinomial distribution in Agresti 1.2.2:** A certain card game uses the 52 cards in a standard deck (four each of the thirteen cards Ace, 2, 3, .., 9, 10, Jack, Queen, King) plus the two Jokers.  Of the four 2s in the deck, two are black and two are red.  In this game, the only important distinction is among Aces, Wild Cards (black 2s and Jokers), Face Cards (Jack, Queen or King), and everything else. Suppose that the 54-card deck is shuffled, one card is selected, the card is replaced, and the experiment is repeated, for a total of five independent and identically distribbuted draws from the  complete deck.  Let $Y=(n_{ace},n_{wild},n_{face},n_{other})$ denote the random vector recording the number of each type of card in the five draws.  Then $n_{ace}+n_{wild}+n_{face}+n_{other}=5$, and $Y$ has a multinomial distribution with parameters $n=5$ and $(\pi_{ace},\pi_{wild},\pi_{face},\pi_{other})$, written as $Y\sim\mbox{multinom}(n;(\pi_{ace},\pi_{wild},\pi_{face},\pi_{other}))$. 
+
+(a). In the following chunk of code, replace `Prob_Success` by the appropriate probability vector for this card problem.  Use the code to set your random number seed to 552 and simulate 10,000 independent replicates of the multinomial random **vector** $Y$. Verify that, to a good approximation, the sample mean **vector** of the 10,000 replicates is the theoretical mean $n(\pi_{ace},\pi_{wild},\pi_{face},\pi_{other})$ and the sample variance over the 10,000 replicates  is the theoretical variance $n\pi_i(1-\pi_i)$ for each card type, $i\in\{\mbox{ace,wild,face,other}\}$. 
+
+
+```{r}
+Num_Trials <- 5
+Prob_Success <- c((4/54), (4/54), (12/54), (34/54))
+set.seed(552)
+Card_Count <- rmultinom(10000, size = Num_Trials, prob = Prob_Success)
+apply(Card_Count, MAR = 1, FUN = "mean")   # mean of each row for the Monte Carlo trials
+Num_Trials * Prob_Success                  # theoretical mean
+```
+***
+
+**Answer:**
+
+```{r}
+#monte carlo variance
+apply(Card_Count, MAR = 1, FUN = "var")
+
+#Calculate and display the theoretical variance
+var_theoretic <- Num_Trials * Prob_Success * (1 - Prob_Success)
+var_theoretic
+```
+
+***
+
+(b). We expect negative covariance between any two counts among the four counts, because if one count is large, the others tend to be small (there are only five cards drawn all together). In fact, we know from theory that   for two different card types, $i\ne j$,  the theoretical covariance between the count for card type $i$ and the count for card type $j$ is $-n\pi_i\pi_j$.  We can compute the corresponding empirical covariance with `cov(Card_Count[i, ], Card_Count[j, ])` where `i` and `j` are the rows corresponding to the desired card types. Compare the theoretical covariance to the empirical covariance for (i) Aces and Wild Cards; (ii) Wild Cards and Face Cards; and (iii) Wild Cards and Other cards.
+
+
+
+***
+
+**Answer:**
+
+```{r}
+#Calculate and compare empirical and theoretical covariance for Aces and Wild Cards
+cov_aces_wc_theoretical <- -Num_Trials * Prob_Success[1] * Prob_Success[2]
+cov_aces_wc_theoretical
+
+cov_aces_wc_emp <- cov(Card_Count[1,], Card_Count[2,])
+cov_aces_wc_emp
+
+#Calculate and compare empirical and theoretical covariance for Wild Cards and Face Cards
+cov_wc_face_theoretical <- -Num_Trials * Prob_Success[2] * Prob_Success[3]
+cov_wc_face_theoretical
+
+cov_wc_face_emp <- cov(Card_Count[2,], Card_Count[3,])
+cov_wc_face_emp
+
+#Calculate and compare empirical and theoretical covariance for Wild Cards and Other Cards
+cov_wc_other_theoretical <- -Num_Trials * Prob_Success[2] * Prob_Success[4]
+cov_wc_other_theoretical
+
+cov_wc_other_emp <- cov(Card_Count[2,], Card_Count[4,])
+cov_wc_other_emp
+```
+
+***
+
+3. **Poisson distribution in Agresti 1.2.3.** 
+
+(a). Set your random number seed to 552 and simulate 10,000 independent replicates of the random variable $Y\sim$ Poisson($\mu$), with expected value $\mu=1.4$. Verify that, to a good approximation, the sample mean of the 10,000 replicates is $\mu$ and the sample variance of the 10,000 replicates is $\mu$. 
+
+***
+
+**Answer:** 
+```{r}
+set.seed(552)
+mu <- 1.4
+Y_pois <- rpois(nreps, mu)
+mean_Y_pois <- mean(Y_pois)
+mean_Y_pois
+#Very good approximation
+
+var_Y_pois <- var(Y_pois)
+var_Y_pois
+#Variance is a good approximation
+```
+
+***
+
+
+(b). Plot the true probability mass function for Poisson($\mu$) [equation (1.4) of Agresti] and add to your plot the empirical distribution of your 10,000 replicates. Comment on the agreement between theoretical and empirical distributions. 
+
+***
+
+**Answer:** 
+
+```{r}
+#Plot a the empirical mass function
+h <- min(Y_pois):max(Y_pois)
+y <- table(Y_pois)/nreps
+y <- as.matrix(y)
+plot(h, y, type = "h", col = 'blue', lwd = 10)
+
+#Plot the true probability mass function as a line
+lines(h, dpois(h, mu), type = "l", col = "magenta" , lwd = 3)
+```
+
+***
+
+
+(c). Graphically compare the distribution of your Poisson random variable to the normal approximation with mean $=\mu$ and variance $=\mu$.  Use both the histogram and the empirical cdf. 
+
+***
+
+**Answer:** 
+
+```{r}
+#Plot the histogram of poisson random variable and overlay the normal distribution curve
+plot(h, y, type = "h", col = 'green', lwd = 10)
+l <- seq(from = min(Y_pois), to = max(Y_pois), length.out = 1000)
+lines(l, dnorm(l, mean = mu, sd = sqrt(mu)), col = 'blue', lwd = 5)
+```
+
+```{r}
+#Plot the empirical cdf and the normal cdf for comparison
+plot(ecdf(Y_pois), lwd = 2, xlab = "Poisson Counts for mu = 1.4", col = "green")
+lines(l, pnorm(l, mean = mu, sd = sqrt(mu)), col = "blue", lwd = 3)
+```
+
+***
+
+(d). The normal approximation is thought to be reasonable when $\mu\ge 10$, which is not the case above.  Increase $\mu$ to $10$ so that the condition is met, repeat your simulation, and comment.  
+
+***
+
+**Answer:** 
+
+```{r}
+#Change mu to 10 and repeat the simulation
+set.seed(552)
+mu <- 10
+Y_pois <- rpois(nreps, mu)
+
+#Plot the empirical distribution and compare to the normal distribution with mean 10 and var 10
+h <- min(Y_pois):max(Y_pois)
+y <- table(Y_pois)/nreps
+y <- as.matrix(y)
+plot(h, y, type = "h", col = 'green', lwd = 10)
+l <- seq(from = min(Y_pois), to = max(Y_pois), length.out = 1000)
+lines(l, dnorm(l, mean = mu, sd = sqrt(mu)), col = 'blue', lwd = 5)
+```
+
+```{r}
+#Plot the empirical cdf and compare to the normal cdf
+plot(ecdf(Y_pois), lwd = 2, xlab = "Poisson Counts for mu = 10", col = "green")
+lines(l, pnorm(l, mean = mu, sd = sqrt(mu)), col = "blue", lwd = 3)
+```
+
+We see visually that at $\mu$ = 10 the normal approximation of the poission random variable is very close and seems reasonable.
+
+***
+
+4. Consider the following data on homicides in England and Wales from April 2014 to March 2016. 
+These data consist of the numbers of days (out of total of 1,091 days) on which 0, 1, 2, 3, 4, or 5 homicides occurred:
+```{r}
+categories <- c(0:5)
+observed <- c(259, 387, 261, 131, 40, 13)
+rbind(categories, observed)
+```
+So, for example, there were 13 days on which there were exactly 5 homicides. 
+Do these observations match the Poisson distribution?  Conduct a goodness-of-fit test using the method described in **Agresti 1.5.2** and **1.5.5** . Also, produce a plot showing the theoretical probability mass function of your fitted Poisson distribution and the empirical distribution of the data.
+
+***
+
+**Answer:** 
+
+```{r}
+#Create a vector of proportions
+pi_j <- c((259/1091), (387/1091), (261/1091), (131/1091), (40/1091), (13/1091))
+pi_j
+sum(pi_j)
+```
+
+```{r}
+#Calculate the expected value from the observations
+E_hom <- sum(categories * pi_j)
+E_hom
+```
+
+```{r}
+#Generate the probabilities from the underlying assumed Poisson distribution with mu = 1.399633
+exp_proportions <- dpois(categories, E_hom)
+exp_proportions
+sum(exp_proportions)
+
+#We see that the probabilities don't quite sum to 1 so we need to 
+#add that difference to the last category of 5 so that it will become
+#the correct proportion for 5 or more homicides
+
+add_prop <- 1 - sum(exp_proportions)
+exp_proportions[6] <- exp_proportions[6] + add_prop
+exp_proportions
+```
+
+```{r}
+#Create a vector of the expected counts under a Poisson distribution
+exp_hom <- sum(observed) * exp_proportions
+exp_hom
+```
+
+```{r}
+#Calculate the chi squared test statistic
+chi_sq <- sum(((observed - exp_hom) ^ 2) / exp_hom)
+chi_sq
+```
+
+```{r}
+#For the Pearson chi squared test we know that our test statistic is distributed
+#chi squared with c - 1 - p degrees of freedom.  In this case p = 1 since we had
+#to estimate the mean of the Poisson distribution from the data
+#We are now ready to calculate the p values
+
+p_val <- 1 - pchisq(chi_sq, df = 6 - 1 - 1)
+p_val
+```
+
+In this case with p value of 0.765 we would fail to reject the null hypothesis and conclude that the data do match the data that would be expected from a Poisson distribution.
+
+```{r}
+#Plot the theoretical mass function to compare with the empirical mass function generated 
+#from the data
+
+#Plot a the empirical mass function
+h <- categories
+y <- pi_j
+plot(h, y, type = "h", col = 'blue', lwd = 8)
+
+#Plot the theoretical mass function
+lines(h, dpois(h, E_hom), type = "l", col = "magenta" , lwd = 3)
+```
+
+Clearly the theoretical mass function and the empirical mass function appear visually very close which supports our conclusion that the data match a Poisson distribution.
+
+***
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

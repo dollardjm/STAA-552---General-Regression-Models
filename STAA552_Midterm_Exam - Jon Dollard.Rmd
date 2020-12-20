@@ -1,0 +1,537 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+\newcommand{\jayline}{\underline{\ \ \ \ \ \ \ \ \ \ \ \ \ }}
+STAA552 Midterm Exam.
+========================================================
+#### Name: Jon Dollard
+
+*********************************************************************************
+
+\newcommand{\bone}{{\bf 1}}
+\newcommand{\pr}[1]{\mbox{P}\left(#1\right)}
+\newcommand{\E}[1]{\mbox{E}\left[#1\right]}
+\newcommand{\V}[1]{\mbox{Var}\left(#1\right)}
+\newcommand{\ecdf}[1]{\widehat{F}\left(#1\right)}
+\newcommand{\equant}[1]{\widehat{\theta}_{#1}}
+
+
+
+#### READ THE FOLLOWING INSTRUCTIONS CAREFULLY.
+
+  * 1. You must return this exam within 24 hours.  Submit as a final pdf through Canvas.
+  
+  * 2. This exam is open notes.
+  
+  * 3. You will obviously use a computer for this exam. 
+  
+  * 4. You must show your work clearly to receive full credit. Write clear and well-documented code, label your figures (if any) clearly, and write complete (but concise) descriptions of your results. In particular, use RANTDRC format to give complete hypothesis test results. 
+  
+  * 5. You must independently finish this exam. If you don't understand a question, or are having some other difficulty, do not hesitate to ask your instructors for clarification **via email to  both me and Nehali through Canvas.**  
+  
+  * 6. Contacting *anyone else* about this exam constitutes unauthorized aid during this exam and is considered cheating.
+
+**By submitting your completed exam through Canvas, you are pledging that you have neither given nor received any unauthorized aid during this exam.**
+
+***
+\newpage
+
+
+
+1. In a certain Scandinavian country, a population cancer registry has been used to determine that the probability of cancer is 0.02883; this estimate, based on essentially all cases in the country, can be treated as fixed and known.   A total of 5931 eligible patients who had undergone organ transplantation (kidney, liver, heart, lung, pancreas or a combination of solid organs) were selected for a study of their cancer risk.  Starting from thirty days after transplant, these patients were tracked until they were diagnosed with cancer, they died from other causes, or the study ended, whichever came first.  There were 692 cancer cases among the 5931 eligible patients. (Note: nationwide, there is only a small number of transplant cases and an even smaller number of cancer cases among the transplants.  This small number of cancer cases is not enough to change the nationwide probability of cancer at all, so the probability of cancer for non-transplant patients is also 0.02883.)
+
+(a). How many cancer cases would you expect among the transplant patients, assuming the population rate applies? Round to the nearest integer. 
+
+***
+**Answer:**
+
+```{r}
+#Define a variable for the population cancer probability
+p_cancer_pop <- 0.02883
+
+#Expected cancer cases for the transplant patients
+n_transplant <- 5931
+exp_cancer_transplant <- round((n_transplant * p_cancer_pop), 0)
+exp_cancer_transplant
+```
+
+Given the popluation rate of cancer we would expect 171 cancer cases among transplant patients.
+
+***
+
+(b). Describe the study design using STAA552 terminology: cross-sectional, cohort, clinical trial, retrospective, prospective, case-control, observational, experimental? Explain.  Be sure to specify what variable is playing the role of $X$ and what variable is playing the role of $Y$.
+
+***
+**Answer:**
+
+This is a prospective cohort study where the predictor X is a transplant patient or non-transplant patient and the response Y is cancer or no cancer.  Since this is a cohort study the researchers don't have control over the assignment of X, but rather choose 5931 eligible transplant patients.  Since we aren't told what the elegibility criteria (other than had qualifying transplant) is and we are interested in studying the risk of developing cancer in transplant patients we must be cautious of other potential factors that explain the risk of cancer in transplant patients.
+
+***
+
+(c). Write down a probability model for the cancer cases among the transplant patients, specifying any unknown parameters.  Use the data given to estimate the values of any unknown parameters in your model. (That is, be careful to distinguish between unknown parameters of the model and estimates of those parameters.)
+
+***
+**Answer:**
+
+The probability model for cancer cases among transplant patients is Binomial(n = 5931, $\pi$).  In this case we are looking at the row distribution for transplant patients.  Since we do not know what the probability of "success" (getting cancer :( ) is in this row distribution we must estimate it from the data.  Our estimate of $\hat\pi$, the probability of getting cancer for a transplant patient, is (692/5931) = 0.12 (rounded to the nearest .01).
+
+***
+
+(d). The researchers would like to know if cancer risk differs between the transplant patients and the population. Conduct a complete statistical test to address this question. Use significance level $\alpha = 0.05$. Explain your choice of test and give all the details in RANTDRC format. 
+
+***
+**Answer:**
+
+```{r}
+#We can simulate the null hypothesis binomial trial many times
+#Calculate Pearson's test statistic X^2 for each simulated trial
+#Calculate the p-value as the proportion of the simulated value of X^2 
+#that are larger than the observed value for X^2
+
+obs_data <- c(692, 5239)
+
+chisq.test(obs_data,  p = dbinom(1:0, size = 1, prob = p_cancer_pop), simulate.p.value = TRUE, B = 5000)
+```
+
+R:
+
+We are interested to test whether or not the cancer risk differs between the transplant patients and the population.  In other words, is the probability for cancer in transplant patients the same as the probability for cancer in the population.
+
+A:
+
+The alternative hypothesis, $H_a$: The probability of cancer in transplant patient is not the same as the probability of cancer in the population.
+
+N:
+
+The null hypothesis, $H_0$: The probability of cancer in transplant patients is the same as the probability of cancer in the population.
+
+T:
+
+The test statistic is the Pearson test statistic $X^2$.
+
+D:
+
+The distribution of the test statistic under the null hypothesis is $X^2$ is approximately ~ $\chi^2$.
+
+R:
+
+After 5000 simulations from a binomial experiment we obtain a Pearson's test statistic of $X^2$ = 154,670
+
+and a corresponding simulated p-value of 0.0002.
+
+We reject the null hypothesis that the probability of cancer in transplant patients is the same as the probability of cancer in the population.
+
+C:
+
+We have evidence that the probability of cancer in transplant patients is not the same as the probability of cancer in the population.  From the given data and the population probability for cancer we see that the probability of cancer for transplant patients is higher than the population probability for cancer.
+
+***
+
+2. Bicycling accidents cause many serious injuries and deaths, primarily from head injuries. Safety helmets are widely recommended for cyclists, but obtaining evidence of their effectiveness is difficult.  Researchers collected the following data from emergency rooms at five hospitals: 235 persons had received emergency care for head injuries received while bicycling, of whom 16 were wearing bicycle helmets; and 433 persons had  received emergency care for bicycling injuries not involving the head, of whom 104 were wearing bicycle helmets.  
+
+
+(a). Describe this study design using STAA552 terminology: cross-sectional, cohort, clinical trial, retrospective, prospective, case-control, observational, experimental? Explain.   Be sure to specify what variable is playing the role of $X$ and what variable is playing the role of $Y$.
+
+
+***
+**Answer:**
+
+This study design is a retrospective case-control study.  In this study the predictor variable X is whether or not the emergency care patient was wearing a helment (Yes or No) and the response Y is emergency care provided for a bicycling head injury or emergency care provided for a bicycling injury not involving the head.  In this study 235 cases were chosen where bicycling head injury occurred and about 2 matched controls per case.
+
+***
+
+(b). Use these bicycle accident data to give a point estimate and 95% confidence interval estimate for an appropriate parameter, explaining your choice.  Write a careful sentence that includes your point estimate and confidence interval and draws a defensible scientific conclusion in the context of this problem. 
+
+
+***
+**Answer:**
+
+```{r}
+#Since this is a case-control study the appropriate statistic is
+#the odds-ratio
+
+#Create variables for the data
+n_11 <- 16
+n_12 <- 104
+n_21 <- 219
+n_22 <- 329
+
+#Calculate the odds ratio using the cross product
+odds_r <- (n_11 * n_22) / (n_12 * n_21)
+odds_r
+
+#Calculate the confidence interval for the log odds ratio
+log_odds_ratio <- log(odds_r)
+log_odds_ratio
+
+CI_95_lower <- log_odds_ratio - (1.96 * sqrt((1/n_11) + (1/n_12) + (1/n_21) + (1/n_22)))
+CI_95_lower
+CI_95_upper <- log_odds_ratio + (1.96 * sqrt((1/n_11) + (1/n_12) + (1/n_21) + (1/n_22)))
+CI_95_upper
+
+#Exponentiate the confidence interval to return the non log scale
+CI_95_lower_nl <- exp(CI_95_lower)
+CI_95_lower_nl
+CI_95_upper_nl <- exp(CI_95_upper)
+CI_95_upper_nl
+```
+
+From the data we calculated the odds ratio to be 0.23 with a confidence interval of (0.13, 0.40) and since the confidence interval does not contain one we conclude that we do have sufficient evidence to reject the null hypothesis (odds ratio = 1) and conclude that for this study that wearing a helmet reduces the odds of a bicycling head injury.  
+
+***
+
+3. The following table summarizes eye color (`Light` or `Not Light`) in 4532 family lines, from Grandparent to Parent to Child:
+
+
+\begin{tabular}{|cc|cc|}\hline
+&&\multicolumn{2}{c|}{Child Eye Color}\\\hline
+Grandparent Eye Color& Parent Eye Color& Light&  Not Light\\\hline
+Light        & Light & 1860& 313 \\
+            & Not Light  & 591  &311 \\\hline
+Not Light         & Light & 611 & 102 \\
+           & Not Light  & 453 & 291 \\\hline
+\end{tabular}
+
+
+
+(a).  Ignoring Parent Eye Color for the moment, is Grandparent Eye Color independent of Child Eye Color?  Conduct a complete statistical test to address this question. Use significance level $\alpha = 0.05$. Explain your choice of test and give all the details in RANTDRC format.
+
+
+***
+**Answer:**
+
+```{r}
+#We want to know if Grandparent eye color is independent of the childs eye color
+#if we ignore the parents eye color
+
+#Want to calculate the X^2 test statistic and conduct the Pearson's Goodness of Fit
+#test
+
+#Calculate the X^2 test statistic
+n_11 <- 2451
+n_12 <- 624
+n_21 <- 1064
+n_22 <- 393
+
+#Create a matrix of the data
+data <- c(n_11, n_21, n_12, n_22)
+data <- matrix(data, 2, 2)
+data
+
+#Set the degrees of freedom
+I <- 2
+J <- 2
+df <- (I - 1) * (J - 1)
+
+X_sq <- matrix(nrow = 2, ncol = 2)
+#Use a nested for loop to calculate the chi squared test statistic for each nij
+for (i in 1:2){
+  for(j in 1:2){
+    X_sq[i,j] <- ((((data[i,j]) - ((sum(data[i,]) * sum(data[,j])) / sum(data)))^2) / 
+                           ((sum(data[i,]) * sum(data[,j])) / sum(data)))
+  }
+}
+
+X_sq
+X_sq <- sum(X_sq)
+X_sq
+
+#Now we can calculate our p-value from the Chi Squared distribution
+p_val <- 1 - pchisq(X_sq, df)
+p_val
+
+#Use chisq.test to double check the result
+chisq.test(data, correct = FALSE)
+
+```
+
+R:
+
+We are interested to test whether or not the grandparents eye color is independent of the childs eye color.
+
+A:
+
+$H_a$: The grandparents and childs eye color are not independent.
+
+N:
+
+$H_0$: The grandparents and childs eye color are independent.
+
+T:
+
+The test statistic we will evaluate is Pearson's test statistic, $X^2$.
+
+D:
+
+$X^2$ is approximately ~ $\chi^2$, with (I - 1)(J - 1) degrees of freedom.
+
+R:
+
+The result is $X^2$ = 25.34969, with a corresonding p-value of $P(\chi^2_1 > X^2)$ = 4.782286e-07
+
+We reject the null hypothesis at the $\alpha = 0.05$ level and conclude that the grandparents and childs eye color are NOT independent.
+
+C:
+
+We have evidence that the eye color of the grandparents and grandchildren are NOT independent.  The evidence seems strong given the large test statistic and very small p-value obtained from the data and test.  However, we note that we have not controlled for parents' eye color.
+***
+
+(b). A potentially more interesting question is whether grandparents' eye color is related to their grandchildrens' eye color after controlling for the parents' eye color.  Estimate the conditional odds ratio (with a point estimate and 95% confidence interval) for Grandparent and Child eye color at each level of Parent eye color.   Does the model of conditional independence seem consistent with these data?  Explain. 
+
+
+***
+**Answer:**
+
+```{r}
+#First we will estimate the conditional odds ratio given Parent Eye Color = Light
+n_11_L <- 1860
+n_12_L <- 313
+n_21_L <- 611
+n_22_L <- 102
+
+#Calculate the odds ratio using the cross product
+odds_r <- (n_11_L * n_22_L) / (n_12_L * n_21_L)
+odds_r
+
+#Calculate the confidence interval for the log odds ratio
+log_odds_ratio <- log(odds_r)
+log_odds_ratio
+
+CI_95_lower <- log_odds_ratio - (1.96 * sqrt((1/n_11_L) + (1/n_12_L) + (1/n_21_L) + (1/n_22_L)))
+CI_95_lower
+CI_95_upper <- log_odds_ratio + (1.96 * sqrt((1/n_11_L) + (1/n_12_L) + (1/n_21_L) + (1/n_22_L)))
+CI_95_upper
+
+#Change to confidence interval to a non log scale
+CI_95_lower_nl <- exp(CI_95_lower)
+CI_95_lower_nl
+CI_95_upper_nl <- exp(CI_95_upper)
+CI_95_upper_nl
+```
+
+The point estimate of the odds ratio is 0.99 and the confidence interval is (0.78, 1.26).
+
+```{r}
+#Next we will estimate the conditional odds ratio given Parent Eye Color = Not Light
+n_11_NL <- 591
+n_12_NL <- 311
+n_21_NL <- 453
+n_22_NL <- 291
+
+#Calculate the odds ratio using the cross product
+odds_r <- (n_11_NL * n_22_NL) / (n_12_NL * n_21_NL)
+odds_r
+
+#Calculate the confidence interval for the log odds ratio
+log_odds_ratio <- log(odds_r)
+log_odds_ratio
+
+CI_95_lower <- log_odds_ratio - (1.96 * sqrt((1/n_11_NL) + (1/n_12_NL) + (1/n_21_NL) + (1/n_22_NL)))
+CI_95_lower
+CI_95_upper <- log_odds_ratio + (1.96 * sqrt((1/n_11_NL) + (1/n_12_NL) + (1/n_21_NL) + (1/n_22_NL)))
+CI_95_upper
+
+#Change to confidence interval to a non log scale
+CI_95_lower_nl <- exp(CI_95_lower)
+CI_95_lower_nl
+CI_95_upper_nl <- exp(CI_95_upper)
+CI_95_upper_nl
+```
+
+The point estimate of the odds ratio is 1.221 and the confidence interval is (0.998, 1.493).
+
+After observing the conditional odds ratios at each level of parent eye color the model of conditional independence does seem consistent with these data.  We see that at both levels of parent eye color our conditional odds ratio is essentially 1 at the parent = light eye color level and slightly above 1 at the parent = not light eye color level.  Further investigating the confidence intervals we note that, at both levels, the confidence intervals contain 1 for the odds ratio.  This suggests that we do not have enough evidence to reject the null hypothesis of conditional independence given the parent's eye color.
+
+***
+
+
+(c).  Is grandparents' eye color related to their grandchildrens' eye color after controlling for the parents' eye color?   Conduct a complete statistical test to address this question. Use significance level $\alpha = 0.05$. Explain your choice of test and give all the details in RANTDRC format.  In your conclusion, explain how your result relates to your answer in part (a) of this problem. 
+
+***
+**Answer:**
+
+```{r}
+#For the test of conditional independence will will use the CMH test
+#We can use the built in R function to assist with the calculations
+#First we create a data array for the data
+eye_color <- array(c(1860, 611, 313, 102, 591, 453, 311, 291),
+                   dim = c(2, 2, 2))
+eye_color
+
+mantelhaen.test(eye_color)
+```
+
+***
+
+R:
+
+The research question we are investigating is do the grandchildren's eye color depend upon their grandparents eye color controlling for the parents eye color.
+
+A:
+
+The alternative hypothesis we are considering is that the grandparents' and grandchildrens' eye color are not conditionally independent given the parents' eye color.
+
+N:
+
+The null hypothesis for this test is that the grandparents' and grandchildrens' eye color are conditionally independent given the parents' eye color.
+
+T:
+
+CMH
+
+D:
+
+The distribution of the test statistic under the null hypothesis is the CMH is approximately ~ $\chi^2_1$.
+
+R:
+
+With continuity correction, 
+
+$X^2_{CMH}$ = 1.9855,
+
+with corresponding p-value of 
+
+$P(\chi^2_1 > X^2_{CMH})$ = 0.1588
+
+Therefore we fail to reject the null hypothesis and conclude that the grandparents' and grandchildrens' eye color are conditionally independent given the parents' eye color.
+
+C:
+When controlling for the eye color of the parents' we have evidence that the eye color of the grandparents' and grandchildren are conditionally independent.  We note that the odds ratios were similar at both levels of parental eye color and the estimated common odds ratio was 1.12, which is very close to 1.  Interestingly in part (a) we drew the opposite conclusion regarding eye color independence (grandparents' and grandchildrens' eye color are not independent) when we ignored the parents' eye color.  Clearly we see from this example how confounding variables can cause you to reach the wrong conclusion if ignored and thus should always be considered in tests.
+
+
+4. Rheumatoid arthritis is associated with progressive joint destruction, functional disability, and decreased life expectancy.  A study was conducted to compare a placebo to the effects of a drug, etanercept, at two different doses: 10 mg or 25 mg.   Patients were randomly assigned to receive placebo (80 patients), 10 mg etanercept (76 patients), or 25 mg etanercept (78 patients) via injection.  The design was double-blind, in the sense that neither the health care worked administering the injection nor the patient receiving the injection knew the contents (placebo or drug) of the injection.  Patients were followed for six months, and assessed on whether or not they had achieved "20% ACR Response," meaning 20% improvement according to the American College of Rheumatology (ACR) response scale.  In this study,  11 patients in the placebo group, 51 patients in the 10 mg etanercept group, and 59 patients in the 25 mg etanercept group achieved 20% ACR response at six months. 
+
+
+(a). Describe this study design using STAA552 terminology: cross-sectional, cohort, clinical trial, retrospective, prospective, case-control, observational, experimental? Explain.   Be sure to specify what variable is playing the role of $X$ and what variable is playing the role of $Y$.
+
+
+***
+**Answer:**
+
+This study is a prospective study and a randomized experiment clinical trial.  We are randomly assigning (controlling) who gets etanercept at what level or the placebo and we measure the response Y at a later time (six months later).  In this case our X has three levels; 25mg of etanercept, 10 mg of etanercept, and placebo.  The response Y can either be the patient achieved 20% ACR Response or they did not.
+
+***
+
+(b).  Write down a probability model for the cases that achieve 20% ACR within the three drug treatment groups, specifying any unknown parameters.  Use the data given to estimate the values of any unknown parameters in your model. (That is, be careful to distinguish between unknown parameters of the model and estimates of those parameters.)
+
+***
+**Answer:**
+
+The probability model for the cases that achieve 20% ACR within the three drug treatment groups is a Multinomial(n = 121, $[\pi_1, \pi_2, \pi_3]^T$).  We don't know $\pi_1$, $\pi_2$, or $\pi_3$ in the data model and must estimate them from the data.  Under the null we have to estimate 2 of the 3 success probabilities since they must sum to 1 (constraint of the null hypothesis).  We do that as follows.
+
+```{r}
+#Estimate pi_1 and pi_2
+pi_1_hat <- 59 / 121
+pi_1_hat
+pi_2_hat <- 51 / 121
+pi_2_hat
+
+#Check pi_3 estimate and the sum under the null,
+#Technically not estimated from the data, since under the null pi_3_hat 
+#Can be calculated once the other 2 are estimated from the data
+#Calculating it as a double check
+pi_3_hat <- 11 / 121
+pi_3_hat
+
+#Check that under the null the column sum must be 1
+sum(pi_1_hat, pi_2_hat, pi_3_hat)
+
+```
+
+***
+
+(c). Is 10 mg etanercept better than the placebo treatment?  Give a point estimate and 95% confidence interval estimate for an appropriate parameter, explaining your choice.  Write a careful sentence that includes your point estimate and confidence interval and draws a defensible scientific conclusion in the context of this problem. 
+
+***
+**Answer:**
+
+```{r}
+#We can look at the odds ratio in this case
+p_10mg <- pi_2_hat
+p_placebo <- pi_3_hat
+
+#Calculate the odds ratio 
+odds_r <- (p_10mg / (1 - p_10mg)) / (p_placebo / (1 - p_placebo))
+odds_r
+
+#Calculate the confidence interval for the log odds ratio
+log_odds_ratio <- log(odds_r)
+log_odds_ratio
+
+CI_95_lower <- log_odds_ratio - (1.96 * sqrt((1/51) + (1/25) + (1/11) + (1/69)))
+CI_95_lower
+CI_95_upper <- log_odds_ratio + (1.96 * sqrt((1/51) + (1/25) + (1/11) + (1/69)))
+CI_95_upper
+
+#Put the results on a non log scale
+CI_95_lower_nl <- exp(CI_95_lower)
+CI_95_lower_nl
+CI_95_upper_nl <- exp(CI_95_upper)
+CI_95_upper_nl
+```
+
+From our point estimate of the odds ratio of 7.285714 and a confidence interval of (3.286215, 16.15282) we can conclude that we have evidence to support that a 10 mg dosage of etanercept increases your odds of reaching 20% ACR.
+
+***
+
+(d). Is etanercept at 25 mg different from etanercept at 10 mg in its effect on patients achieving 20% ACR?  Conduct a complete statistical test to address this question.   Use significance level $\alpha = 0.05$. Explain your choice of test and give all the details in RANTDRC format.
+
+
+***
+**Answer:**
+
+```{r}
+#We can conduct a Pearson's Chi Squared test for this test
+#Create a matrix of the data
+data <- c(59, 51, 19, 25)
+data <- matrix(data, 2, 2)
+data
+
+#Use the chisq.test() function for the calculation
+chisq.test(data, correct = FALSE)
+```
+
+R:
+
+Is the etanercept 25mg dosage different from a 10mg dosage in it's effect on patients achieving 20% ACR?
+
+A:
+
+The alternative hypothesis, $H_a$: The 25mg dosage of etanercept is different from the 10mg dosage in its effect on the response.
+
+N:
+
+The null hypothesis, $H_0$: The 25mg dosage of etanercept is not different from the 10mg dosage in its effect on the response.
+
+T:
+
+The test statistic is the Pearson test statistic, $X^2$.
+
+D:
+
+The distribution of the test statistic under the null hypothesis is that $X^2$ is approximately ~ $\chi^2_1$.
+
+R:
+
+The results of the test are $X^2$ = 1.3743 and a p-value of $P(\chi^2_1 > X^2)$ = 0.2411
+
+We fail to reject the null hypothesis and conclude that a 25 mg dosage of etanercept is not different from a 10mg dosage in it's effect on patients achieving a 20% ACR?
+
+C:
+
+We have evidence from our test that giving a patient a 10mg dosage of etanercept is no different than giving the patient a 25mg dosage of etanercept in it's effect on the patient achieving a 20% ACR response.  Therefore, a 10mg dosage of etanercept appears adequate to achieve the desired outcome (20% ACR response).  
+
+***
+
+
+
+
+
+
+
+
+
+

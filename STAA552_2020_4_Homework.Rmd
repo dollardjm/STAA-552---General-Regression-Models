@@ -1,0 +1,735 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+STAA552 Homework #4.
+========================================================
+#### Name: Jon Dollard
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
+***
+1. This problem works through the analysis of the horseshoe crabs data of Agresti.  The data set is introduced in Section 4.3.2 and re-visited in Section 5.1.3 and later sections.  First, read in the data: 
+```{r}
+hc <- read.csv(file = "Horseshoe_Crabs.csv", header = TRUE)
+head(hc)
+```
+Each record corresponds to one female crab, with `width` of her carapace in cm, `weight` in grams, and `satell` equal to the count of nearby males ("satellites").  In this example, we are looking at the binary variable `y`, which is 1 if there are any nearby males, and 0 otherwise.  
+
+The first step in this analysis is to look at the data using a figure similar to Figure 5.2 of Agresti. That figure includes empirical proportions for each of eight width groups (see Agresti Section 4.3.2), 
+\[
+\le 23.25,(23.25, 24.25],\ldots, (28.25,29.25], >29.25. 
+\]
+Create these eight groups and compute the empirical proportions as follows: 
+```{r}
+Groups <- 0.25 + 23:29 # group boundaries in cm
+groups <- rep(NA, length(hc$width))
+for(i in 2:7){
+  x <- (hc$width > Groups[i - 1]) & (hc$width <= Groups[i]) 
+  groups[x] <- i
+}
+x <- (hc$width <= Groups[1])
+groups[x] <- 1
+x <- (hc$width > Groups[7])
+groups[x] <- 8
+```
+Now compute empirical probabilities for each of the eight groups, and produce a plot similar to Figure 5.2 of Agresti (without the added smooth curve): 
+```{r}
+Y <- tapply(hc$y, INDEX = groups, FUN = "sum")
+N <- tapply(hc$y, INDEX = groups, FUN = "length")
+W <- c(23.25 - 0.5, Groups + 0.5)
+plot(hc$width, hc$y, pch = 1, col = "blue", xlab = "Width, x (cm)", 
+     ylab = "Probability of presence of satellites")
+points(W, Y / N, pch = 16, col = "magenta")
+```
+
+Clearly, the probability that the female has a satellite male increases with the width of her carapace.  We want to model this probability. 
+
++ 1a. Let $x_i$ denote width in cm of the $i$th female crab and let $Y_i$ denote the binary indicator of presence of male satellites (1=yes, 0=no). Let $\pi(x_i)$ denote the probability that female crab $i$ has a satellite. Consider logistic regression of $Y_i$ on the intercept and width.  Write down the theoretical generalized linear model for this setting: specify the random component, the link function, and the systematic component. Note any unknown parameters.
+
+
+***
+**Answer:**
+
+The theoretical generalized linear model for logistic regression of $Y_i$ is:
+
+Random Component:
+
+The logistic regression random component is binomial where, $Y_i$ ~ (ind) Binomial($n_i$, $\pi(x_i)$).
+
+Systematic Component:
+
+The systematic component is $\sum_{j=0}^p \beta_j x_{ij}$ = $\beta_0 + \beta_1 x_{i1}$.
+
+Link Function:
+
+The link function is the log-odds or Logit.  For the binomial, $Q(\pi(x_i))$ = ln($\frac{\pi(x_i)}{1 - \pi(x_i)}$) = $\sum_{j=0}^p \beta_j x_{ij}$ = $\beta_0 + \beta_1 x_{i1}$.
+
+The unknown parameters are $\beta_0$ and $\beta_1$.
+
+***
++ 1b.  Use `glm` to fit the theoretical model of part (a) to the crab data. Compare the deviance value and degrees of freedom, parameter estimates, and standard errors from your fitted model to Table 5.1 in Agresti. 
+
+**Note:** it is sometimes useful to extract pieces of the `summary` output.  For example, if the fitted `glm` object is called `fit`, then `summary(fit)$coefficients` gives just the table of results.  The first column of that table, `summary(fit)$coefficients[, 1]`, contains the point estimates; the second column, `summary(fit)$coefficients[, 2]`, contains the standard errors, etc.  Further, the deviance is `summary(fit)$deviance` and degrees of freedom is `summary(fit)$df.resid`.
+
+***
+**Answer:**
+
+```{r}
+log_reg_fit <- glm(y ~ width, family = binomial(link = logit), data = hc)
+summary(log_reg_fit)
+```
+
+Comparing the deviance value, degrees of freedom, parameter estimates, and standard errors of our fitted model to Table 5.1 in Agresti we see that they are all the same.
+
+***
+
++ 1c. In Table 5.1, Agresti also reports "Wald Chi-Sq" test statistics (22.07 for the intercept and 23.89 for the coefficient of `width`) and corresponding p-values.  How do these values compare to the output from your `glm` fit above?  What is the approximate distribution of each "Wald Chi-Sq" test statistic under the null hypothesis that the corresponding parameter is zero?  Explain, and be sure to specify any parameters of the distribution. 
+
+***
+**Answer:**
+
+```{r}
+w_stat_b0 <- (-4.698)^2
+w_stat_b0
+w_stat_b1 <- 4.887^2
+w_stat_b1
+```
+
+These Wald Chi-Sq test statistics from Table 5.1 are the same values that we calculate from our glm fit in part (b).  Under the null hypothesis each Wald Chi-Sq test statistic is distributed $\chi^2_1$, Chi-squared with degrees of freedom equal to 1. 
+
+***
+
++ 1d. Apply the function `confint` to your fitted model to obtain approximate 95% confidence intervals for your estimated parameters.  Compare to Table 5.1 of Agresti. **Notice:** these are likelihood-based confidence intervals that differ slightly from 
+\[
+(\mbox{point estimate}) \pm1.96(\mbox{standard error}).
+\]
+
+***
+**Answer:**
+
+```{r, message=FALSE}
+confint(log_reg_fit, level = 0.95)
+```
+
+We see that the confidence intervals we calculate using the confint() are very similar to those in Table 5.1 of Agresti.
+
+***
+
++ 1e. The mean crab width in these data is 26.3 cm.  Agresti (p. 167) estimates the probability of a satellite for a mean-width crab as $\hat\pi(26.3)=0.674$.  Verify this computation using your fit above.  To get estimated probabilities at new width values, you can use 
+`predict.glm(fit, newdata = list(width = 26.3), type = "response")`.  Without the `newdata` argument, you will get estimated probabilities for every record in the original data set.
+
+***
+**Answer:**
+
+```{r}
+predict.glm(log_reg_fit, newdata = list(width = 26.3), type = "response")
+```
+
+***
+
++ 1f.   For purposes of plotting, compute a fine grid of 1000 widths from the smallest observed width to the largest. Estimate the success probability at each of these grid values, then create a version of the plot above (with raw data and grouped empirical proportions) that includes the smooth curve of your fitted logistic regression probabilities.  Compare to Figure 5.3 of Agresti. 
+
+***
+**Answer:**
+
+```{r}
+fine_grid <- seq(from = min(hc$width), to = max(hc$width), length.out = 1000)
+pi_hats <- (exp(-12.3508 + 0.4972 * fine_grid)) / (1 + exp(-12.3508 + 0.4972 * fine_grid))
+
+
+plot(hc$width, hc$y, pch = 1, col = "blue", xlab = "Width, x (cm)", 
+     ylab = "Probability of presence of satellites")
+lines(fine_grid, pi_hats, col = "purple", lty = 1, xlab = "Width, x(cm)", ylab = "Proportion having satellites, pi(x)",
+     main = "Proportion Having Satellites vs. Carapace Width")
+points(W, Y / N, pch = 16, col = "red")
+```
+
+***
+
++ 1g. One way to assess possible lack-of-fit is to see if a more complex model fits any better than our current model. In this case, we fit a model that includes a *quadratic* term in width as well as a linear term, and see if it fits any better than the model with linear term only.  Reproduce the results of section 5.2.4 of Agresti,
+\[
+\mbox{logit}(\hat\pi(x))=0.618+0.533(x-\bar{x})+0.040(x-\bar x)^2
+\]
+by first centering the width by subtracting off its mean:
+```{r}
+w_center <- hc$width - mean(hc$width)
+```
+Add this centered value and its squared version to your data frame, then fit the logistic regression using intercept, linear and quadratic terms. *Note: using `poly()` will not work, as it creates orthogonal polynomials that are not equivalent to $(x-\bar x)$ and $(x - \bar x)^2$.* 
+Compare the quadratic model to the linear model via a drop-in-deviance test, computed directly from the deviances of the two models.  Verify your drop-in-deviance computation by using `anova` to compare the two fits.  Is there any reason to prefer the larger model? Compare to the results in Agresti section 5.2.4, noting that the "likelihood-ratio statistic" mentioned there is the drop-in-deviance test statistic (up to possible rounding errors).
+
+***
+**Answer:**
+
+```{r}
+log_reg_quad_fit <- glm(hc$y ~ w_center + I(w_center^2), family = binomial(link = logit))
+summary(log_reg_quad_fit)
+
+# Drop-in-deviance test between linear and quadratic model.
+log_reg_fit$deviance - log_reg_quad_fit$deviance
+pchisq(log_reg_fit$deviance - log_reg_quad_fit$deviance, df = 1, lower = F)
+
+#Verify using anova()
+anova(log_reg_quad_fit)
+```
+
+
+Comparing the drop in deviance test statistic to the likelihood ratio test statitic presented in Agresti we see that the two are equal up to a rounding error of 2 decimal places.  The test statistic for the null hypothesis that the true coefficient for the $x^2$ term is zero is 0.83 with df = 1.  Calculating the p-value for this test we get 0.36.  We don't have evidence to reject the null hypothesis and therefore we would fail to reject the null hypothesis and conclude that linear model is adequate and that we should not retain the $x^2$ term in the model.
+
+***
+
++ 1h. For grouped data, we can conduct a deviance-based lack-of-fit model by comparing our GLM to the fit of the saturated model.  In this horseshoe crab example, the width data are nearly continuous, so there are a few repeated values, but not many.  We treat these as ungrouped data, for which the deviance-based lack-of-fit test does not apply. 
+
+Instead, it is common with such data to assess lack-of-fit by creating *artificial groups.*  We do so first by using the eight groups that we already used earlier. Reproduce Table 5.2 of Agresti, in which the data are grouped by our earlier width categories 
+\[
+\le 23.25,(23.25, 24.25],\ldots, (28.25,29.25], >29.25. 
+\]
+Notice that the "Number Yes" column is the `Y` vector computed via `tapply` in the `R` code above. The "Fitted Yes" column is the sum of the estimated probabilities for all crabs in each group.  Use `tapply` to compute the values in this column.  Similarly, compute the "Number No" and "Fitted No" columns, and output all four columns together using `cbind`. Compare to Table 5.2 of Agresti.
+
+***
+**Answer:**
+
+```{r}
+No <- tapply(hc$y == 0, INDEX = groups, FUN = "sum")
+pred_pi <- predict.glm(log_reg_fit, type = "response")
+fit_Y <- tapply(pred_pi, INDEX = groups, FUN = "sum")
+fit_N <- tapply((1-pred_pi), INDEX = groups, FUN = "sum")
+
+crabs <- cbind(Y, No, fit_Y, fit_N)
+crabs
+```
+
+***
+
++ 1i. Use your table from part (h) to compute the usual Pearson $X^2$ statistic, 
+\[
+\sum\frac{\left(\mbox{observed}-\mbox{expected}\right)^2}{\mbox{expected}},
+\] where the sum is computed over all cells.  *(To count degrees of freedom, think of conducting eight separate goodness-of-fit tests, one for each width group.  Each test would have one degree of freedom, because the two probabilities in that group have to sum to one.  But we had to estimate two parameters to get the fitted probabilities.)*  Is there any evidence of lack-of-fit based on this Pearson test?  Compare to Agresti's result in section 5.2.5.  
+
+***
+**Answer:**
+
+```{r}
+#Compute the Pearson X^2 statistic
+X_sqd <- sum((((crabs[,1] - crabs[,3])^2) / crabs[,3]), (((crabs[,2] - crabs[,4])^2) / crabs[,4]))
+X_sqd
+
+p_val <- pchisq(X_sqd, 6, lower.tail = FALSE)
+p_val
+```
+
+With a $X^2$ statistic value of 5.32 with 6 degrees of freedom we don't have evidence of lack of fit, which agrees with the results in Agresti.  Further we calculate a p value of 0.5.
+
+***
+
+
++ 1j. It is common in practice to use groups that are determined by quantiles of the estimated probabilities, instead of pre-determined groups like we used in part (i) above.  This is the basis of the **Hosmer-Lemeshow test** (see \S5.2.5) Install the `generalhoslem` package within `R` on your computer.  Conduct a Hosmer-Lemeshow lack-of-fit test  by using the function `logitgof` from this package, with $g=10$ groups. To use this function, you need the vector of observed 0-1 values and the vector of expected values from the fitted model, which are just the estimated probabilities, `pi_hat <- predict.glm(fit, type = "response")`.  Give a complete description of the lack-of-fit test in RANTDRC format (your test statistic will not agree with Agresti, but your conclusion should be the same.)
+
+***
+**Answer:**
+
+```{r, message=FALSE, warning=FALSE}
+library(generalhoslem)
+y <- hc$y
+pi_hat <- predict.glm(log_reg_fit, type = "response")
+logitgof(y, pi_hat, g=10)
+```
+
+RANTDRC description of the lack-of-fit test:
+
+R: Research Question
+
+We want to determine if our GLM from parts (a and b) fit our data for the horseshoe crabs.
+
+A: Alternative Hypothesis
+
+The alternative hypothesis is that our GLM does not fit our data.
+
+N: Null Hypothesis
+
+The null hypothesis is that our GLM adquately fits the data.
+
+T: Test Statistic
+
+The test statistic is the Hosmer-Lemeshow statistic
+
+D: Distribution
+
+The Hosmer-Lemeshow statistic is approximately $\chi^2_8$ under the null hypothesis
+
+R: Result
+
+We calculate the Hosmer-Lemeshow statistic to be 4.3855 and a corresponding p-value of 0.8208.  Therefore we fail to reject the null hypothesis.
+
+C: Conclusion
+
+Since we fail to reject the null hypothesis, we conclude that our GLM adequately fits the data.  
+
+***
+
+\pagebreak
+
+2. On August 22, 1985, British Airtours Flight 28M began to take off from Manchester, UK, to Corfu, Greece.  The takeoff was aborted when a loud sound was heard from underneath the plane. While the pilot initially thought the sound was a blown tire, it was in fact a fire starting in the left engine.   The plane was in the process of evacuation when the cabin was filled with thick smoke.  Not counting crew or lap-held infants, there were 128 passengers on board. Only the two forward exits and the right side overwing exit were functional during the evacuation. Due to these and other difficulties with the evacuation, only 76 of the 128 passengers survived.  Most of the deaths were due to smoke inhalation.  This tragedy led to many improvements in emergency exit layout, emergency exit seating restrictions, floorpath lighting to guide passengers to an exit, and pre-flight instructions to passengers by flight attendants.  See  <https://en.wikipedia.org/wiki/British_Airtours_Flight_28M>
+for a detailed description.  In this problem we will model the survival probabilities for these passengers as a function of seating location within the plane: `Row` number (front `Row = 1`, back `Row = 22`) and `Side` of plane (`left`, `right`).  On this Boeing 737, both sides of Row 11, the left side of Row 21, and the left side of Row 22 had only two seats each.   *Treat `Row` as a continuous variable in this analysis.*  The data are available on `Canvas` as `Flight_28M_British_Airtours.csv`. 
+
+_(If you find yourself enjoying these disaster predictions, you might look at the Kaggle competition for predicting survival on the Titanic: <https://www.kaggle.com/c/titanic> )_
+
+
+
+*********************************************************************************
+
+
++ 2a. Write down (symbolically) the logistic regression model with logit link that would answer the question: is there evidence that right-side passengers had a greater chance of
+survival than  left-side passengers, controlling for row number? (Just the simple, additive model.)
+
+***
+**Answer:**
+
+Let $Y_i$ be our response variable that takes the value 1 if a passenger survives and 0 if a passenger dies.  Let $X_{i1}$ denote the the row number for the $ith$ row.  For this model we will use an indicator variable for which side the passenger was seated on as follows: Let $X_2$ equal 1 if the passenger was seated on the right side and 0 if seated on the left side.
+
+Also, we will define $\theta_i$ as the probability that the $ith$ passenger survives.
+
+Therefore, our logistic regression model with the logit link is:
+
+$\\Q(\theta_i) = ln(\frac{\theta_i}{1 - \theta_i}) = \beta_0 + \beta_1 \times X_{i1} + \beta_2 \times X_2$
+
+***
++ 2b.  Interpret the coefficients that you defined in (2a).
+
+***
+**Answer:**
+
+The coefficient $\beta_{1}$ is the fraction by which the probability a passenger survives changes with a change in row number.  For a 1 unit change in row number the the probability that a passenger survives changes by a factor of $exp(\beta_1)$.  The direction of the change (positive or negative) depends on the sign of $\beta_1$.
+
+The coefficient $\beta_{2}$ is the fraction by which the probability a passenger survives changes based upon which side of the plane they were sitting.  If the passenger was on the right side then the indicator variable is 1 and the probability a passenger survives changes by a factor of $exp(\beta_2)$ and the direction of the change depends on the sign of $\beta_2$.  Since the indicator variable takes the value of 0 for a passenger seated on the left side of the plane, then in this case, $\beta_2$ will be multiplied by zero and the logistic regression model then depends only on $\beta_0$ and $\beta_1$.
+ 
+***
+
++ 2c. It is possible that there is an interaction between `Row` and `Side`.  Rewrite the model from  (2a) including this term. 
+ 
+***
+**Answer:**
+
+Rewriting the model from 2(a) to include an interaction term between 'Row' and 'Side' we add an additional coefficient $\beta_3$ to the model.
+
+$Q(\theta_i) = ln(\frac{\theta_i}{1 - \theta_i}) = \beta_0 + \beta_1 \times X_{i1} + \beta_2 \times X_2 + \beta_3 \times X_{i1} \times X_2$
+
+
+***
+
++ 2d. Interpret the coefficient for the interaction that you defined in (2c).
+
+***
+**Answer:**
+
+For the interaction coefficient, $\beta_3$, the probability a passenger survives changes by a factor of $exp(\beta_3)$ for a 1 unit change in row when the passenger was seated on the right side of the plane (i.e. $X_2$ = 1).  When the passenger was seated on the left side of the plane the indicator variable $X_2$ = 0 and the interaction term becomes 0 and then the model depends only on $\beta_0$ and $\beta_1$.
+
+***
++ 2e. Fit the interaction model and include the `summary()` of your model fit here. 
+
+***
+**Answer:**
+
+```{r}
+#read the flight data into r
+flight_data <- read.csv("Flight_28M_British_Airtours.csv")
+
+#take a look at the first few rows of the data to make sure it looks right
+head(flight_data)
+
+y <-
+  array(c(flight_data$Survived, flight_data$Passengers - flight_data$Survived),
+  dim = c(44, 2),
+  dimnames = list(
+  Row = c(1:44),
+  Survived = c("Yes", "No")
+  )
+  )
+#y
+
+#create the model using the interaction term
+glm_fit_int <- glm(y ~ Row
+                  + factor(Side) 
+                   + Row * factor(Side),
+                   family = binomial(link = logit),
+                   data = flight_data)
+summary(glm_fit_int)
+```
+
+***
+
++ 2f. For the model that includes the interaction term, is there any evidence of lack-of-fit?
+
+***
+**Answer:**
+
+```{r}
+#Calculate the p-value for the residual deviance to assess lack of fit
+p <- pchisq(glm_fit_int$deviance, df = glm_fit_int$df.residual, lower.tail = FALSE)
+p
+```
+
+We suspect no lack of fit based on the residual deviance value of 46.367 on 40 degrees of freedom.  We see that after calculating the p value of 0.2263588 and assuming a signficance threshold of 0.05 that we don't have evidence of lack-of-fit.  In this case we would fail to reject the null hypothesis that the model that includes the interaction term does fit the data and conclude that this model does fit the data.
+
+***
+
++ 2g. Now fit the additive model you defined in  (2a) and include the `summary()` of your model fit here.  Test your smaller, additive model against the original, interaction model to see if the interaction term is warranted  by using the drop-in-deviance test.  Justify your use of the drop-in-deviance test. 
+
+***
+**Answer:**
+
+```{r}
+#create the model using the additive model
+glm_fit_add <- glm(y ~ Row + factor(Side),
+                   family = binomial(link = logit),
+                   data = flight_data)
+summary(glm_fit_add)
+
+#Calculate the drop in deviance 
+did <- glm_fit_add$deviance - glm_fit_int$deviance
+did
+
+#Calculate the p value for the drop in deviance statistic
+p_val <- pchisq(did, df = 1, lower.tail = FALSE)
+p_val
+```
+
+With a p value of 0.1556369 we would fail to reject null hypothesis at a 0.05 significance level and conclude that our model without the interaction term is an adequate fit to the data.  We do not need the interaction term and would need to consider residual diagnostics of the additive model or look to further test a simplification to one predictor.
+
+We can justify using the drop-in-deviance test for these models because we have grouped data (survival and death counts grouped by row) and we have shown in part (f) that we have no evidence of lack of in the larger model (model with the interaction term).  Therefore, we can compare the larger model to the simpler additive model using the drop-in-deviance test. Since our data in this problem is grouped we know that it is approximately ~ $\chi^2_{N - (p+1)}$.
+
+***
+
++ 2h. Use the fitted additive model, without any simplification, to estimate the probability of survival for a row 18 right-side passenger and for a row 5 left-side passenger. 
+
+***
+**Answer:**
+
+```{r}
+#Use the predict function in r to estimate survival probabilities
+predict.glm(glm_fit_add, newdata = list(Row = 18, Side = 'Right'), type = 'response')
+
+predict.glm(glm_fit_add, newdata = list(Row = 5, Side = 'Left'), type = 'response')
+```
+
+***
+
++  2i. Because passengers are grouped by `Row` and `Side` of the plane, there may be overdispersion present in these data.  Fit the additive model using `quasibinomial`.  Is there evidence of overdispersion?  If so, what is its impact, if any?
+
+***
+**Answer:**
+
+```{r}
+#create the model using the additive model and quasibinomial family
+glm_fit_add_quasi <- glm(y ~ Row + factor(Side),
+                   family = quasibinomial(link = logit),
+                   data = flight_data)
+summary(glm_fit_add_quasi)
+```
+
+The dispersion parameter is 1.074704.  The overdispersion parameter is very close to 1 and that suggests that overdispersion is not present in these data.  
+
+***
+
+\pagebreak
+
+3. Consider the following table of data on bird species extinctions.
+\begin{table}[h!]
+\centering
+\begin{tabular}{lrrr}
+Island & Area ($km^2$) & Species at risk & Extinctions \\
+\hline
+Ulkokrunni & 185.80 & 75 & 5 \\
+Maakrunni & 105.80 & 67 & 3 \\
+Ristikari     & 30.70 & 66 & 10 \\
+Isonkivenletto  & 8.50 & 51 & 6 \\
+Heitakraasukka  & 4.80 & 28 & 3 \\
+Kraasukka  & 4.50 & 20 & 4 \\
+Lansiletto    & 4.30 & 43 & 8 \\
+Pihlajakari  & 3.60 & 31 & 3 \\
+Tyni   & 2.60 & 28 & 5 \\
+Tasasenletto  & 1.70 & 32 & 6 \\
+Raiska  & 1.20 & 30 & 8 \\
+Pohjanletto  & 0.70 & 20 & 2 \\
+Toro  & 0.70 & 31 & 9 \\
+Luusiletto  & 0.60 & 16 & 5 \\
+Vatunginletto  & 0.40 & 15 & 7 \\
+Vatunginnokka & 0.30 & 33 & 8 \\
+Tiirakari & 0.20 & 40 & 13 \\
+Ristikarenletto & 0.07 & 6 & 3
+\end{tabular}
+\caption{{\bf Krunnit Islands study:} Island area, number of bird species present in 1949, and number of those not present in 1959.}
+\end{table}
+ See the file `Extinction.csv` on `Canvas` for
+the data.
+Our goal is to fit a binomial regression with logit link for the probability of extinction as a function of island `Area`.
+
+
++ 3a.  Plot the empirical logits,  logit(proportion of extinct species),  as a function of `Area`.  Why does a linear specification for the systematic component of the model, 
+$\beta_0+\beta_1$`Area`,  not seem appropriate?
+
+***
+**Answer:**
+
+```{r, message=FALSE}
+#read the extinction data into r
+ext_data <- read.csv("Extinction.csv")
+attach(ext_data)
+
+#take a look at the first few rows of the data to make sure it looks right
+head(ext_data)
+
+#Calculate the extinction proportions and logits
+ext_prop <- Extinctions / SpeciesAtRisk
+ext_logits <- log(ext_prop / (1 - ext_prop))
+
+#Plot of extinction logits vs. Area
+ext_df <- data.frame(Area, ext_logits)
+
+ggplot(data = ext_df, aes(x = Area, y = ext_logits)) +
+         geom_point(color = "purple", size = 3) +
+         labs(x = "Area", y = "Extinction Logits", 
+         title = "Extinction Logits vs. Area") +               
+         theme(plot.title = element_text(hjust = 0.5))
+```
+
+A linear specification for the systematic component the model $\beta_0+\beta_1$`Area` doesn't seem appropriate because of the 3 data points that lie far from the others.  Most of the data points are within an island Area less than 8, but we see 3 data points are at much larger Area values.  A linear fit to this data would likely lead to large errors and poor prediction performance.
+
+***
+
++ 3b.  Plot the logit(proportion of extinction) as a function of log(`Area`).  Does a linear   specification for the systematic component of the model, $\beta_0+\beta_1\log$(`Area`),  seem appropriate?
+
+***
+**Answer:**
+
+```{r}
+#Plot of extinction logits vs. log(Area)
+ext_df <- data.frame(log(Area), ext_logits)
+
+ggplot(data = ext_df, aes(x = log(Area), y = ext_logits)) +
+         geom_point(color = "orange", size = 4) +
+         labs(x = "Log Area", y = "Extinction Logits", 
+         title = "Extinction Logits vs. Log Area") +               
+         theme(plot.title = element_text(hjust = 0.5))
+```
+
+From visual inspection, a linear specification for the systematic component of the model, $\beta_0+\beta_1\log$(`Area`) does seem reasonable for the log transformed Area.
+
+***
+
++ 3c. After making a log transformation to `Area`, fit a logistic regression curve to the data.  Report $\hat\beta_0$ (intercept),
+$\hat\beta_1$ (slope), the estimated standard errors of both, and 95\% confidence intervals for both.  Interpret the estimated coefficient of log(`Area`).
+
+***
+**Answer:**
+
+```{r}
+y <-
+  array(c(Extinctions, SpeciesAtRisk - Extinctions),
+  dim = c(18, 2),
+  dimnames = list(
+  Row = Island,
+  Extinct = c("Yes", "No")
+  )
+  )
+
+lr_ext_la <- glm(y ~ log(Area), family = binomial(link = "logit"), data = ext_data)
+summary(lr_ext_la)
+```
+
+```{r, message=FALSE}
+#Beta_hat_0
+lr_ext_la$coefficients[1]
+
+#standard error for Beta_hat_0
+summary(lr_ext_la)$coefficients[3]
+
+#confidence interval for Beta_hat_0 
+confint(lr_ext_la)
+
+```
+
+The confidence interval for $\hat\beta_0$ = (-1.4330322, -0.9680656).
+
+```{r, message=FALSE}
+#Beta_hat_1
+lr_ext_la$coefficients[2]
+
+#standard error for Beta_hat_1
+summary(lr_ext_la)$coefficients[4]
+
+#confidence interval for Beta_hat_1 
+confint(lr_ext_la)
+```
+
+The confidence interval for $\hat\beta_1$ is (-0.4077542, -0.1922731).
+
+The estimated coefficient of log(`Area`) is -0.2971037 and can be interpreted as a 1 unit increase in log(`Area`) results in the probability of extinction decreasing by a factor of -0.2971037.
+
+***
+
++ 3d. Conduct a deviance-based lack-of-fit test for the binomial GLM with intercept and log(`Area`) and logit link.  Is this a valid test to use in the situation and why? Specify  the null and alternate hypotheses, the distribution of the test statistic under the null hypothesis, the value of the test statistic, and the corresponding $p$-value.  Draw a conclusion.
+
+***
+**Answer:**
+
+```{r}
+p_value <- pchisq(lr_ext_la$deviance, df = lr_ext_la$df.residual, lower.tail = FALSE)
+p_value
+```
+
+The deviance based lack of fit test is valid to use in this situation because our data is grouped by island.
+
+R: Research Question
+
+Does our GLM developed in part (c) fit our data?
+
+A: Alternate Hypothesis
+
+The alternate hypothsis is that the GLM does not fit.
+
+N: Null Hypothesis
+
+The null hypothesis is that the GLM does fit the data.
+
+T: Test Statistic
+
+Our test statistic will be the likelihood ratio test that compares our GLM to the saturated model.
+
+D: Distribution
+
+Under the null hypothesis the deviance test statistic is approximately ~ $\chi^2_{16}$.
+
+R: Result
+
+The deviance test statistic, 12.062, has a corresponding p value of 0.7397351.  Therefore, we fail to reject the null hypothesis and conclude that our GLM does fit the data.
+
+C: Scientific Conclusion
+
+Since we failed to reject our null hypothesis, we conclude that our additive model with an intercept and log(Area) fit the data adequately.  Our next step would be to perform the residual diagnostics.  
+***
+
++ 3e.  Compute and plot the Pearson residuals $e_i$ versus linear fitted values $\hat\beta_0+\hat\beta_1\log(\mbox{Area})$ on a figure with guidelines at $\pm 2$ and $\pm3$.  Do the residuals indicate any evidence of overdispersion?
+
+***
+**Answer:**
+
+```{r}
+pearson_resid <- residuals(lr_ext_la, type = 'pearson')
+pred_ext <- predict.glm(lr_ext_la, type = 'response')
+
+resid_df <- data.frame(pred_ext, pearson_resid)
+
+ggplot(data = resid_df, aes(x = pred_ext, y = pearson_resid)) +
+         geom_point(color = "green", size = 3) +
+         labs(x = "Predicted Probability of Extinction", y = "Pearson Residuals", 
+         title = "Pearson Residuals vs. Predicted Probability of Extinction") +               
+         theme(plot.title = element_text(hjust = 0.5)) +
+         geom_hline(yintercept = 2, linetype = 'dashed', color = 'red') +
+         geom_hline(yintercept = -2, linetype = 'dashed', color = 'red') +
+         geom_hline(yintercept = 3, color = 'red') +
+         geom_hline(yintercept = -3, color = 'red')
+
+```
+
+Looking at the residuals plot we don't see any visual evidence of overdispersion.  None of the residuals exceed the +/- tolerance that would indicate more variance in the model than we would expect.  The residuals also don't exhibit a distinct pattern or curvature.
+
+***
+
++ 3f.  Compute the fitted probability for Pihlajakari
+and for Maakrunni.  
+
+***
+**Answer:**
+
+```{r}
+#Use the predict() to compute the probability for extinction
+
+#Pihlajakari
+predict.glm(lr_ext_la, newdata = list(Area = 3.6), type = 'response')
+
+#Maakrunni
+predict.glm(lr_ext_la, newdata = list(Area = 105.8), type = 'response')
+```
+
+***
+
++ 3g. It seems possible that there is a bit of a quadratic slope in the data as well.  Get the model
+fit with the additional quadratic term. Conduct a formal drop-in-deviance test for the inclusion
+of a quadratic term, and draw a conclusion.
+
+***
+**Answer:**
+
+```{r}
+#fit the model with a quadratic term
+lr_ext_quad <- glm(y ~ poly(log(Area), 2), family = binomial(link = "logit"),
+                   data = ext_data)
+summary(lr_ext_quad)
+
+DiD <- lr_ext_la$deviance - lr_ext_quad$deviance
+DiD
+
+pval <- pchisq(DiD, df = 1, lower.tail = FALSE)
+pval
+```
+
+R: Research Question
+
+Do we need to expand the model to include the quadratic term or was the model with the log(Area) adequate for the data?
+
+A: Alternate Hypothesis
+
+The smaller model that has an intercept and log(Area) term is not adequate and we need to include the quadratic term to adequately fit the data.
+
+N: Null Hypothesis
+
+The smaller model is adequate to fit the data.
+
+T: Test Statistic
+
+Our test statistic will be the likelihood ratio test Drop-in-Deviance (DiD).
+
+D: Distribution
+
+Under the null hypothesis the DiD test statistic is approximately ~ $\chi^2_1$.
+
+R: Result
+
+We calculated the DiD test statistic to be 0.08231 with corresponding p value of 0.774191.  Therefore, we do not have evidence to reject the null hypothesis and conclude that the smaller model is an adequate model for these data.
+
+C: Scientific Conclusion
+
+Since we fail to reject our null hypothesis, we conclude that the smaller model adequately fits the data and that we do not need to add the quadratic term.  The model that includes and intercept and log(Area) term provides an adequate fit to the data.  
+***
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

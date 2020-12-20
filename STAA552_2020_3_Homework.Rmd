@@ -1,0 +1,412 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+STAA552 Homework #3: 
+========================================================
+
+#### Name: Jon Dollard
+
+*********************************************************************************
+
+```{r setup, include=FALSE, echo = FALSE}
+# Use echo = FALSE for Answer Key without R code, 
+# echo = TRUE for complete solutions.
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+1. In this problem, we will first simulate data to mimic actual data from the coronary artery bypass  grafting (CABG) database of the Providence Health System, then fit these simulated data via logistic regression. (This allows us to compare our empirical estimates to the true, theoretical values with which we simulated our data.) The original data, described in Anderson et al. (Ann Thorac Surg 2003;75:753-7),   came from nine hospitals in four Western states during January 1997 to
+December 2001. We will simulate three variables for this analysis: the continuous covariate, `age`, which is patient age at operation; the categorical (0-1) covariate, `renal`, which is 1 if the patient has a
+history of acute or chronic renal insufficiency or a history
+of a serum creatinine  $>2.0$  recorded in the clinical
+record, and 0 otherwise; and the binary response, `death` during the surgery.  There are 12,736 patients in the simulated data set.
+
+  a) Use the following code to simulate the patient data set.
+  
+```{r}
+beta_0     <- -8.868 # intercept
+beta_renal <-  1.162 # coefficient of renal
+beta_age   <-  0.073 # coefficient of age
+N <- 12736
+set.seed(552)
+
+# Set some parameters for a gamma distribution to simulate age
+a_s <- 65.3 - 24
+a_s2 <- ((97 - 24) / 9) ^ 2
+ss <- a_s2 / a_s
+aa <- a_s / ss
+age <- round(20 + rgamma(N, shape = aa, scale = ss), 0) 
+renal <- rbinom(N, size = 1, prob = 0.04)
+
+# Set the theoretical log-odds of death for each patient
+Log_Odds <- beta_0 + beta_renal * renal + beta_age * age
+
+# Convert from log-odds to probability of death
+Logistic_Prob <- exp(Log_Odds) / (1 + exp(Log_Odds))
+
+# Simulate death or life for each patient
+death <- rbinom(N, size = 1, prob = Logistic_Prob)
+```
+For the simulated data, use `table` to construct the 2x2 table of `renal` and `death`, and show that the empirical odds ratio in this table is approximately 3.2.  Interpret this odds ratio. 
+
+***
+**Answer:**  
+
+```{r}
+#Use table() to create the 2x2 table of renal and death
+rd_table <- table(renal, death)
+rd_table
+
+#Calculate the empirical odds ratio
+rho_1 <- rd_table[2,2] / sum(renal == 1)
+rho_1
+rho_2 <- rd_table[1,2] / sum(renal == 0)
+rho_2
+
+emp_oddsr <- ((rho_1 / (1 - rho_1))) / ((rho_2 / (1 - rho_2)))
+emp_oddsr
+```
+
+For a given age the odds of death is 3 times as great for a patient that has a history of acute or chronic renal insufficiency or a history of a serum creatinine >2.0.
+
+***
+  b). Show (algebraically) that, because the theoretical log-odds used to simulate our data are
+  \[ 
+  \beta_0+\beta_{\mbox{renal}}\times\mbox{renal}+\beta_{\mbox{age}}\times\mbox{age},
+  \]
+  the theoretical log-odds *ratio* between patients with the renal condition and patients of the same age without the renal condition is $\beta_{\mbox{renal}}$. Conclude that the odds ratio is $\exp(\beta_{\mbox{renal}})$.  Compute this odds ratio using the simulation value $\beta_{\mbox{renal}}=1.162$, and comment.
+  
+***
+**Answer:**  
+
+The log odds of death when renal = 1 is $\beta_0+\beta_{\mbox{renal}}+\beta_{\mbox{age}}\times\mbox{age}$.  
+
+The log odds of death when renal = 0 is $\beta_0+\beta_{\mbox{age}}\times\mbox{age}$. 
+
+The log odds ratio of death is:
+
+$\beta_0+\beta_{\mbox{renal}}+\beta_{\mbox{age}}\times\mbox{age}$ - ($\beta_0+\beta_{\mbox{age}}\times\mbox{age}$) = $\beta_{renal}$
+
+Therefore when we exponentiate the log odds ratio to get the odds ratio we find that it equals $e^{\beta_{renal}}$.
+
+```{r}
+#Compute the odds ratio of death is
+odd_r_death <- exp(beta_renal)
+odd_r_death
+```
+
+The theoretical odds ratio of death for a patient has a history of acute or chronic renal insufficiency or a history of a serum creatinine >2.0 is very similar the empirical value calculated from simulations in (a) above.  To reiterate we interpret this odds ratio as for a given age the odds of death are about 3 times as great for a patient that has a history of acute or chronic renal insufficiency or a history of a serum creatinine >2.0.
+
+***
+
+  c). Show that, because the theoretical log-odds used to simulate our data are 
+  \[ 
+  \beta_0+\beta_{\mbox{renal}}\times\mbox{renal}+\beta_{\mbox{age}}\times\mbox{age},
+  \]
+  the theoretical log-odds *ratio* between patients with the renal condition at a given age $x+1$, and patients with the renal condition at age $x$ is $\beta_{\mbox{age}}$.  Similarly, show that the theoretical log-odds *ratio* between patients without the renal condition at a given age $x+1$, and patients without the renal condition at age $x$ is $\beta_{\mbox{age}}$. Conclude that the odds ratio for a one-year increase in `age` (with `renal` fixed at 0 or 1) is $\exp(\beta_{\mbox{age}})$. 
+  
+***
+**Answer:**  
+
+The log-odds between patients where renal = 1 at age (x + 1) is:
+
+$\beta_0+\beta_{\mbox{renal}}+\beta_{\mbox{age}}\times\mbox{(x + 1)}$
+
+The log-odds between patients where renal = 1 at age x is:
+
+$\beta_0+\beta_{\mbox{renal}}+\beta_{\mbox{age}}\times\mbox{(x)}$
+
+The log odds ratio for death at renal = 1 between age (x + 1) and x:
+
+$\beta_0+\beta_{\mbox{renal}}+\beta_{\mbox{age}}\times\mbox{(x + 1)}$ - ($\beta_0+\beta_{\mbox{renal}}+\beta_{\mbox{age}}\times\mbox{(x)}$) = $\beta_{age}$
+
+The log odds between patients where renal = 0 at age (x + 1) is:
+
+$\beta_0+\beta_{\mbox{age}}\times\mbox{(x + 1)}$
+
+The log odds between patients where renal = 0 at age x is:
+
+$\beta_0+\beta_{\mbox{age}}\times\mbox{(x)}$
+
+The log odds ratio for death at renal = 0 between age (x + 1) and x is:
+
+$\beta_0+\beta_{\mbox{age}}\times\mbox{(x + 1)}$ -($\beta_0+\beta_{\mbox{age}}\times\mbox{(x)}$) = $\beta_{age}$
+
+If we exponential the log odds ratio (for renal = 1 or 0) we conclude that odds ratio for a one-year increase in age is $\exp(\beta_{\mbox{age}})$.
+
+***
+  d). Now use the `R` function `glm` to fit a generalized linear model with **random component** that is binomial; **systematic component** that includes intercept, `renal` and `age`;  and **link function** that is logit:
+```{r}
+fit <- glm(death ~ renal + age, family = binomial(link = logit))
+summary(fit)
+```
+Compare your fit to the theorical values used to simulate the data, taking into account the standard errors of your estimated coefficients when comparing to the theoretical coefficients. 
+
+***
+**Answer:**  
+
+```{r}
+#Intercept +/- 1 se
+int_est <- fit$coefficients[1]
+int_est
+int_est_seplus <- int_est + summary(fit)$coef[4]
+int_est_seplus
+int_est_seminus <- int_est - summary(fit)$coef[4]
+int_est_seminus
+
+#Compare with beta_0
+beta_0
+
+#Renal feature +/- se
+renal_est <- fit$coefficients[2]
+renal_est
+renal_est_seplus <- renal_est + summary(fit)$coef[5]
+renal_est_seplus
+renal_est_seminus <- renal_est - summary(fit)$coef[5]
+renal_est_seminus
+
+#Compare with beta_renal
+beta_renal
+
+#age feature +/- se
+age_est <- fit$coefficients[3]
+age_est
+age_est_seplus <- age_est + summary(fit)$coef[6]
+age_est_seplus
+age_est_seminus <- age_est - summary(fit)$coef[6]
+age_est_seminus
+
+#Compare with beta_renal
+beta_age
+```
+
+We see that each estimated coefficient is within 1 standard error of the theoretical values.
+
+***
+
+  e). Compute an approximate 95\% confidence interval for the log-odds ratio for renal by using the point estimate and standard error from the `summary(fit)` above.  Then exponentiate your point estimate and confidence interval to get an approximate 95\% confidence interval for the odds ratio. Comment. 
+
+  
+***
+**Answer:**  
+
+```{r}
+#Calculate the 95% CI for the renal log-odds ratio estimate
+CI_95_lower <- renal_est - (1.96 * summary(fit)$coef[5])
+CI_95_lower
+CI_95_upper <- renal_est + (1.96 * summary(fit)$coef[5])
+CI_95_upper
+
+#Change to non log scale
+renal_est_oddr <- exp(renal_est)
+renal_est_oddr
+CI_95_lower_nl <- exp(CI_95_lower)
+CI_95_lower_nl
+CI_95_upper_nl <- exp(CI_95_upper)
+CI_95_upper_nl
+```
+
+Looking at the point estimate for renal we can say that we are 95% confident that the true value for the odds ratio for renal is between (1.98, 4.79).  The estimated odds ratio for death given the value of for renal is 3.07 and is very close to the empirical value of 3.24 that was calculated from simulations in part (a).  In concludion, we interpret this odds ratio as the odds of death are about 3 times as great for a patient that has a history of acute or chronic renal insufficiency or a history of a serum creatinine >2.0.
+
+***
+
+  f). Use your fitted model to estimate (i) the probability that a 70-year-old with the renal condition dies during CABG surgery; (ii) the probability that a 70-year-old without the renal condition dies during CABG surgery; (iii) the odds ratio, computed directly from the probabilities in (i) and (ii); (iv) the log-odds ratio in (iii).  Compare (iv) to `fit$coef[2]` and comment. 
+  
+***
+**Answer:**  
+
+```{r}
+#i
+#Calculate the probability that a 70-year-old with the renal condition dies
+renal <- 1
+age_val <- 70
+model_out <- -9.356522 + (renal * 1.124853) + (age_val * 0.080345) 
+model_out
+pdr1a70 <- exp(model_out) / (1 + exp(model_out))
+pdr1a70
+
+#ii
+#Calculate the probability that a 70-year-old without the renal condition dies
+renal <- 0
+age_val <- 70
+model_out <- -9.356522 + renal * 1.124853 + age_val * 0.080345 
+model_out
+pdr0a70 <- exp(model_out) / (1 + exp(model_out))
+pdr0a70
+
+#iii
+#Odds ratio of death for a 70 year old patient with the renal condition
+odds_r_death <- (pdr1a70 / (1 - pdr1a70)) / (pdr0a70 / (1 - pdr0a70))
+odds_r_death
+
+#iv
+#log odds ratio for death
+log_odds_ratio_death <- log(odds_r_death)
+log_odds_ratio_death
+
+#compare (iv) to fit$coef[2]
+fit$coef[2]
+```
+
+The value of (iv) and our regression estimate of $\beta_{renal}$ are the same value.  This is to be expected since we are using the model to calculate the value of $\beta_{renal}$ directly for a given value of age.  We showed in part (b) that the log odds ratio for death for patients with the renal condition to patients without the renal condition at a given value for age is $\beta_{renal}$.
+ 
+***
+
+  g).  Use your fitted model to estimate (i) the probability that a 69-year-old with the renal condition dies during CABG surgery; (ii) the odds ratio of renal-70 to renal-69, computed directly from the probabilities in f(i) and g(i); (iii) the log-odds ratio in (ii).  Compare (iii) to `fit$coef[3]` and comment. 
+  
+***
+**Answer:**  
+
+```{r}
+#i
+#Estimate the probability that a 69 year old with the renal condition dies
+renal <- 1
+age_val <- 69
+model_out <- -9.356522 + (renal * 1.124853) + (age_val * 0.080345) 
+model_out
+pdr1a69 <- exp(model_out) / (1 + exp(model_out))
+pdr1a69
+
+#ii
+#Compute the odds ratio of renal-70 to renal-69
+odds_r_death <- (pdr1a70 / (1 - pdr1a70)) / (pdr1a69 / (1 - pdr1a69))
+odds_r_death
+
+#iii
+#Log odds ration from part ii
+log_odds_ratio_death <- log(odds_r_death)
+log_odds_ratio_death
+
+#Compare iii to fit$coef[3]
+fit$coef[3]
+
+```
+
+The value of (iii) and our regression estimate of $\beta_{age}$ are the same value.  This is to be expected since we are using the model to calculate the value of $\beta_{age}$ directly for a patient with the renal condition at age x and x + 1.  We showed in part (c) that the log odds ratio for death for patients of age x + 1 to age x with or without the renal condition is $\beta_{age}$.
+
+***
+
+  h).  Compute a fine grid of ages for purposes of plotting, as follows:
+  
+```{r}
+age_grid <- seq(from = min(age), to = max(age), length.out = 1000)
+```
+
+Use this grid to compute and plot four curves on the same graph: 
+
+  * theoretical probability of death when `renal = 0`, as a blue, solid curve (use plotting options `col = "blue", lty = 1, lwd = 2`)
+  
+  * theoretical probability of death when `renal = 1`, as a red, solid curve 
+  
+  * estimated probability of death when `renal = 0`, as a blue, dashed curve (`col = "blue", lty = 2, lwd = 2`) 
+  
+  * estimated probability of death when `renal = 1`, as a red, dashed curve 
+  
+  Comment on your results. 
+  
+***
+
+**Answer:**  
+
+```{r}
+#Calculate probability vectors for plotting
+#Theoretical probabilities
+renal <- 0
+age_val <- age_grid
+model_out <- beta_0 + (renal * beta_renal) + (age_val * beta_age) 
+Tpdr0agrid <- exp(model_out) / (1 + exp(model_out))
+
+renal <- 1
+age_val <- age_grid
+model_out <- beta_0 + (renal * beta_renal) + (age_val * beta_age) 
+Tpdr1agrid <- exp(model_out) / (1 + exp(model_out))
+
+
+#Estimated probabilities
+renal <- 0
+age_val <- age_grid
+model_out <- -9.356522 + (renal * 1.124853) + (age_val * 0.080345) 
+Epdr0agrid <- exp(model_out) / (1 + exp(model_out))
+
+renal <- 1
+age_val <- age_grid
+model_out <- -9.356522 + (renal * 1.124853) + (age_val * 0.080345) 
+Epdr1agrid <- exp(model_out) / (1 + exp(model_out))
+
+#Create a plot of probabilities for death vs. age
+plot(age_grid, Tpdr0agrid, col = "blue", lty = 1, xlab = "Patient Age", ylab = "Probability of Death",
+     main = "Probability of Death vs Patient Age")
+lines(age_grid, Tpdr1agrid, col = "red", lty = 1)
+lines(age_grid, Epdr0agrid, col = "blue", lty = 2, lwd = 2)
+lines(age_grid, Epdr1agrid, col = "red", lty = 2, lwd = 2)
+
+
+```
+
+***
+
+  i). Fit the logistic regression model that includes the intercept and `age` but does not include `renal`.  Assuming that the original model (with `renal` included) fits the data adequately, test the hypothesis that `renal` can be dropped from the model, using a drop-in-deviance test (see section 4.5.4 of text, or Lecture 12).  Give a complete specification of null, alternative, test statistic, distribution under the null, results, and conclusion in the context of the problem. 
+
+***
+
+**Answer:**  
+
+```{r}
+#Fit the logistic model without renal
+fit_nr <- glm(death ~ age, family = binomial(link = logit))
+summary(fit_nr)
+
+#Calculate the drop in deviance statistic
+dod <- fit_nr$deviance - fit$deviance
+dod
+
+#dod is a large test statistic so we will most likely reject the null
+#that the model without renal fits adequately.  Let's calculate the 
+#p-value next to quantify that idea.
+
+p_val <- pchisq(dod, df = 1, lower.tail = FALSE)
+p_val
+
+```
+
+Conclusion in the RANDRC Format:
+
+R:
+
+We are interested to determine if a logistic model with age as the only predictor(feature) is an adequate fit of the data.
+
+A:
+
+The alternate hypothesis, $H_a$ is the logistic model with age as the only predictor(feature) is not an adequate fit to the data and we should include renal (the full model).
+
+H:
+
+The null hypothesis, $H_0$ is that the logistic model with age as the only predictor(feature) adequately fits the data.
+
+T:
+
+Our test will be the likelhood ratio test.
+
+D:
+
+The distribution of the test statistic, Drop In Deviance, under the null hypothesis is approximately ~ $\chi^2_1$.
+
+R:
+
+The result for the drop in deviance test statistic = 19.37 is a corresonding p-value of $P(\chi^2_1 > Drop In Deviance)$ = 1.077524e-05.
+
+We reject the null hypothesis at the $\alpha = 0.05$ level and conclude that the logistic regression model with age as the only predictor does not adequately fit the data.
+
+C:
+Based on the likelihood ratio test between the logistic regression model with age and renal predictors (alternative model) and a model that only contains age (null model) we conclude that the model that only incorporates age does not adequately fit the data and that a model using both age and renal as predictors is a better fit to the data.
+***
+
+
+
+
+

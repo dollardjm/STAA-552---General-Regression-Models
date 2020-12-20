@@ -1,0 +1,67 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+STAA552 Handout: Valve Replacement
+========================================================
+#### Jay Breidt, Department of Statistics, Colorado State University
+
+**Agresti Table 4.5.**
+In this study, 109 heart valve replacement patients were followed until death, dropout, or the end of the study. Age group (`Age`) and valve type (`ValveType`) were recorded along with number of deaths (`Deaths`) and time at risk (`TimeAtRisk`) in months for each cell.
+```{r}
+Deaths <- c(4, 1, 7, 9)
+TimeAtRisk <- c(1259, 2082, 1417, 1647)
+ValveType <- c("aortic", "mitral", "aortic", "mitral")
+Age <- c("<55", "<55", "55+", "55+")
+d <- data.frame(ValveType, Age, Deaths, TimeAtRisk)
+d
+```
+Let $A_i = 1$ if `Age = 55+` and 0 otherwise, and $M_i = 1$ if `ValveType =
+mitral` and 0 otherwise. 
+
+For cells $i = 1,2,3,4$, model the data as
+$$
+Y_i\sim\mbox{independent Poisson}(t_i\mu(x_i))
+$$
+where $t_i$ is the known `TimeAtRisk` (in months) and
+$$
+\log(\mbox{E}[Y_i])=\log t_i+\sum_{j=0}^p\beta_jx_{ij}.
+$$
+First fit the  the saturated model, with one parameter for each of the four
+cells, just out of curiosity:
+```{r}
+Saturated <- glm(Deaths ~ Age * ValveType, offset = log(TimeAtRisk), 
+                 family = poisson(link = log))
+# notice that Age + ValveType + Age * ValveType is the saturated model.
+summary(Saturated)
+```
+Now look at the additive GLM
+$$
+\log(\mbox{E}[Y_i ]) = \log t_i +\beta_0 + \beta_1A_i + \beta_2 M_i.
+$$
+```{r}
+Full <- glm(Deaths ~ Age + ValveType, offset = log(TimeAtRisk), 
+            family = poisson(link = log))
+summary(Full)
+1 - pchisq(Full$deviance, df = 1)
+```
+The comparison of the additive GLM to the Saturated model shows no strong
+evidence of lack-of-fit at level 0.05. Estimated numbers of deaths and rates
+per month are then
+```{r}
+d <- data.frame(d, Expected_Deaths = exp(predict(Full)), 
+                Rates_per_Month = exp(predict(Full)) / TimeAtRisk)
+d
+```
+These are the values under "Log Link"" in Table 4.6 of Agresti.
+
+What we really want to know is whether the type of valve makes a difference.  Accordingly, we try to simplify the model further:
+```{r}
+Reduced <- glm(Deaths ~ Age, offset = log(TimeAtRisk), family = poisson(link = log))
+summary(Reduced)
+anova(Reduced, Full)
+```
+What should we conclude?
+

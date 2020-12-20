@@ -1,0 +1,153 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+STAA552 Mental Health (Ordinal logistic regression).
+========================================================
+#### Jay Breidt, Department of Statistics, Colorado State University
+
+The following data describe the mental health status, as an ordinal, categorical variable `mental`, of 40 subjects.  Also recorded are their socio-economic status (`ses`: 0=low, 1=high) and number of adverse life events (`life`).
+```{r}
+d <- read.table("Mental.txt", header = TRUE)
+head(d)
+boxplot(life ~ mental, data = d, col = "magenta", 
+        ylab = "Number of adverse life events", 
+        names = c("well", "mild", "moderate", "impaired"))
+```
+
+Get the proportional odds logistic regression `= polr` function from the `MASS` library: 
+```{r}
+library(MASS) # to get function polr
+```
+
+Create meaningful labels for the ordered levels: 
+```{r labels}
+d$mental2 <- ordered(d$mental, levels=1:4, 
+                     labels=c("well", "mild", "moderate", "impaired"))
+```
+
+From `help(polr)`: 
+
+*The basic interpretation is as a coarsened version of a latent variable Y_i which has a logistic or normal or extreme-value or Cauchy distribution with scale parameter one and a linear model for the mean. The ordered factor which is observed is which bin Y_i falls into with breakpoints*
+
+*zeta_0 = $-$Inf < zeta_1 < ... < zeta_K = Inf*
+
+*This leads to the model*
+
+*logit P(Y <= k | x) = zeta_k $-$ eta*
+
+*with logit replaced by probit for a normal latent variable, and eta being the linear predictor, a linear function of the explanatory variables (with no intercept). Note that it is quite common for other software to use the opposite sign for eta (and hence the coefficients beta).*
+
+That is, *eta* is a linear function of some covariates $z$, 
+$$
+{eta} = z^T\beta.
+$$
+To be consistent with our notation, 
+$$
+\mbox{logit}\left(\gamma_k(x)\right)=\alpha_k+x^T\beta = zeta_k-eta = zeta_k -z^T\beta,
+$$
+so $\alpha_k=$*zeta_k* (intercepts from `polr` agree with our parameterization) and 
+$$
+eta = z^T\beta = (-x^T)\beta.
+$$
+This means we will negate our original predictors (except the intercept) so that our $\beta$ coefficients are those produced by `polr`: 
+```{r negates}
+d$ses <- -d$ses
+d$life <- -d$life
+range(d$life)
+range(d$ses)
+```
+
+Now fit a series of models:  
+```{r fits}
+fit_null <- polr(mental2 ~ 1,          data = d, method = "logistic")
+fit_ses  <- polr(mental2 ~ ses,        data = d, method = "logistic")
+fit_life <- polr(mental2 ~ life,       data = d, method = "logistic")
+fit_add  <- polr(mental2 ~ ses + life, data = d, method = "logistic")
+fit_2way <- polr(mental2 ~ ses * life, data = d, method = "logistic")
+```
+Compare those models via deviances: 
+```{r}
+round(c(fit_null$deviance, fit_ses$deviance, fit_life$deviance,
+        fit_add$deviance, fit_2way$deviance), 2)
+```
+Some of our models are better than `null`.  Best among them looks like the additive model.  It is slightly better than `life` only, and is as good as the interaction model, `life * ses = life + ses + life : ses`.  
+```{r}
+summary(fit_add)
+```
+Now use the additive model to compute probabilities. Plot those probabilities versus number of adverse life events: 
+```{r}
+# Again, we need to negate our actual x-covariates ses and life to get 
+# the polr z-covariates.
+Probs_SES1 <- predict(fit_add, 
+                      newdata = data.frame(ses = rep(-1, 10), life = -c(0:9)), 
+                      type = "probs")
+Probs_SES1
+Probs_SES1_impaired_moderate <- apply(Probs_SES1[, 3:4], MAR = 1, FUN = "sum")
+Probs_SES0 <- predict(fit_add, 
+                      newdata = data.frame(ses = rep(0, 10), life = -c(0:9)), 
+                      type = "probs")
+Probs_SES0
+Probs_SES0_impaired_moderate <- apply(Probs_SES0[, 3:4], MAR = 1, FUN = "sum")
+plot(0:9, Probs_SES1_impaired_moderate, axes = F, 
+     lty = 2, type = "l", ylim = c(0, 1), bty = "L", 
+     ylab = "P(moderate or impaired)",
+     xlab = "Number of Adverse Life Events", lwd = 3, col = "blue")
+axis(2)
+axis(1, at = 0:9)
+lines(0:9, Probs_SES0_impaired_moderate, lty = 1, lwd = 3, col = "magenta")
+text(2.5, .5, "SES = 0")
+arrows(2.5, .48, 2.75, .42, length = .1)
+text(3.5, .33, "SES = 1")
+arrows(3.5, .31, 3.75, .25, length = .1)
+```
+
+```{r}
+Probs_SES0_impaired_moderate <- apply(Probs_SES0[, 3:4], MAR = 1, FUN = "sum")
+plot(c(0, 9), c(0, 1),  axes = F, 
+     lty = 2, type = "n", ylim = c(0, 1), bty = "L", 
+     ylab = "Probability",
+     xlab = "Number of Adverse Life Events", lwd = 3, col = "blue")
+axis(2)
+axis(1, at = 0:9)
+lines(0:9, Probs_SES0[, 4], lty = 1, lwd = 3, col = "magenta")
+lines(0:9, Probs_SES0_impaired_moderate, lty = 1, lwd = 3, col = "magenta")
+lines(0:9, apply(Probs_SES0[, 2:4], MAR = 1, FUN = "sum"), lty = 1, lwd = 3, col = "magenta")
+lines(0:9, apply(Probs_SES0[, 2:4], MAR = 1, FUN = "sum"), lty = 1, lwd = 3, col = "magenta")
+
+title(main = "Cumulative Probabilities for SES = 0")
+text(4, .2, "Impaired")
+text(4, .44, "<= Moderate")
+text(4, 0.8, "<= Mild")
+
+```
+
+##Comparing to baseline category logistic regression
+
+If we ignored the ordinal nature of our data, we could just fit a baseline category logistic regression: 
+```{r}
+library(nnet)
+ignore <- multinom(mental2 ~ ses + life, data = d)
+summary(ignore)
+```
+The average coefficients for `ses` and `life` are
+```{r}
+apply(coef(ignore)[, 2:3], MAR = 2, FUN = "mean")
+```
+Compare these to the polr fit of the additive model:
+```{r}
+coef(fit_add)
+```
+The two models are telling basically the same story about the effects of `ses` and `life`.
+
+But the standard errors for the model that ignores order are 
+```{r}
+diag(vcov(ignore))[c(2, 5, 8)]
+diag(vcov(ignore))[c(3, 6, 9)]
+```
+These are much larger than the corresponding standard errors for polr: 
+```{r}
+diag(vcov(fit_add))[1:2]
+```

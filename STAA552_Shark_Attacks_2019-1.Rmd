@@ -1,0 +1,224 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+STAA552 Annual Florida unprovoked shark attacks, 1946 - 2016
+========================================================
+#### Jay Breidt, Department of Statistics, Colorado State University
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Florida data from the International Shark Attack File
+
+These data are a combination of 1946-1999 data from the website <http://people.stern.nyu.edu/jsimonof/AnalCatData/> for the book *Analyzing Categorical Data* by J.S. Simonoff; from the US Census Bureau; and from graphs produced by the International Shark Attack File (ISAF) 
+<https://www.floridamuseum.ufl.edu/fish/isaf/shark-attacks-maps-data/trends/frequency-rates/>
+maintained at the Florida Museum of Natural History. 
+
+Within Florida, Volusia County's annual shark attack count is often on par with all other Florida counties combined.  According to the ISAF website, 
+
+*Volusia County, Florida has a high number of shark-human interactions as a result of extremely high aquatic recreational utilization of its waters by residents and tourists, especially surfers. Most of these interactions result in minor bites or abrasions from small sharks.* 
+
+The ISAF was supported financially by the US Navy until 1968.  It moved around for a few years until settling at the Florida Museum of Natural History in 1988.  After 1993, Volusia County began improved reporting to the ISAF: 
+
+*The apparent increase in attacks after 1987 is in part an artifact of the ISAF moving to the Florida Museum of Natural History, resulting in an increased scope of coverage and reporting of attacks. The apparent increase in attacks after 1993 is in part an artifact of a breakthrough in communication with Volusia County (FL) emergency responders and lifeguards, resulting in the reporting of a greater number of minor attacks that had previously gone unreported.* 
+
+```{r shark}
+shark <- read.csv("Florida_Shark.csv", header = TRUE)
+# US Navy funding for International Shark Attack File ended in 1968
+shark$Navy <- 1 * (shark$Year < 1969)
+# ISAF moved to Florida Museum of Natural History in 1988
+shark$Museum <- 1 * (shark$Year > 1987)
+# volusia County started improved reporting after 1993
+shark$Volusia <- 1 * (shark$Year > 1993)
+```
+
+## Preliminary plots
+
+```{r}
+plot(shark$Year, shark$Attacks, pch = 16, col = "blue")
+title("Attacks versus Year")
+```
+```{r}
+plot(shark$Population, shark$Attacks, pch = 16, col = "blue")
+title("Attacks versus Florida Population")
+```
+
+## Extra-Poisson variation?
+
+As an initial assessment, construct  (approximate) five-year windows:
+```{r}
+window <- factor(shark$Year %/%5) #division modulo 5
+table(window)
+```
+Now compute mean and variance for each window, 
+```{r}
+m <- tapply(shark$Attacks, INDEX = window, FUN = "mean")
+v <- tapply(shark$Attacks, INDEX = window, FUN = "var")
+plot(m, v, pch = 16, col = "blue", 
+     xlab = "window mean", ylab = "window variance")
+abline(c(0, 1), lwd = 3, col = "red")
+```
+
+Is there evidence of extra-Poisson variation?
+
+
+## Model exploration
+
+Importantly, deviance is computed the same way whether we use `poisson` or `quasipoisson`:  
+```{r}
+fit_null <- glm(Attacks ~ 1, 
+             offset = log(Population), 
+             family = poisson(link = log), data = shark)
+deviance(fit_null)
+fit_null <- glm(Attacks ~ 1, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+deviance(fit_null)
+```
+Fit many models, then extract their residual deviances:   
+```{r}
+fit_NYMV <- glm(Attacks ~ Navy + Museum + Year + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_NYV  <- glm(Attacks ~ Navy + Year + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_NMV  <- glm(Attacks ~ Navy + Museum + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_YMV  <- glm(Attacks ~ Museum + Year + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_NV   <- glm(Attacks ~ Navy + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_YV   <- glm(Attacks ~ Year + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_MV   <- glm(Attacks ~ Museum + Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_NYM <- glm(Attacks ~ Navy + Museum + Year, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_NY  <- glm(Attacks ~ Navy + Year, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_NM  <- glm(Attacks ~ Navy + Museum, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_YM  <- glm(Attacks ~ Museum + Year, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_N   <- glm(Attacks ~ Navy, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_Y   <- glm(Attacks ~ Year, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_M   <- glm(Attacks ~ Museum, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+fit_V   <- glm(Attacks ~ Volusia, 
+             offset = log(Population), 
+             family = quasipoisson(link = log), data = shark)
+# Each fit is a list: create a list of lists
+fit <- list(fit_NYMV, 
+            fit_NYV, fit_NMV, fit_YMV, fit_NYM, 
+            fit_NV, fit_YV, fit_MV, fit_NY, fit_NM, fit_YM, 
+            fit_N, fit_Y, fit_M, fit_V,  
+            fit_null)
+# Apply the "deviance" function to each element of list: 
+qdev <- lapply(fit, FUN = "deviance")
+qdev
+```
+
+Focus on the most competitive models: residual deviance close to that of the largest model, but not the largest model: 
+```{r}
+summary(fit[[3]])
+summary(fit[[4]])
+summary(fit[[8]])
+```
+Is there evidence of extra-Poisson variation?  Should we use `quasipoisson`?
+
+Compute and plot predictions under each of the best models: 
+
+```{r}
+plot(shark$Year, shark$Attacks, pch = 16, col = "blue")
+lines(shark$Year, predict(fit[[3]], type = "response"), lwd = 2, col = "black")
+lines(shark$Year, predict(fit[[4]], type = "response"), lwd = 2, col = "green")
+lines(shark$Year, predict(fit[[8]], type = "response"), lwd = 2, col = "red")
+```
+
+## Model without offset
+
+What if we had not used an offset (log(Population) with known coefficient equal to one), but instead used log(Population) as a covariate with unknown coefficient?
+
+```{r}
+fit_noff   <- glm(Attacks ~ log(Population) + Volusia + Museum, 
+                  family = quasipoisson(link = log), data = shark)
+summary(fit_noff)
+```
+Plot and compare predictions to the best of our offset models: 
+```{r}
+plot(shark$Year, shark$Attacks, pch = 16, col = "blue")
+lines(shark$Year, predict(fit[[8]], type = "response"), lwd = 2, col = "red")
+lines(shark$Year, predict(fit_noff, type = "response"), lwd = 2, col = "black")
+```
+
+## Creating a calibrated data set
+
+Suppose we wanted to construct a comparable data set across all years, with the same quality and coverage as the museum years (1988+), and the same level of detail as in the Volusia years (1994+).  This means we want to construct predictions with the variable `Museum` always equal to one, and the variable `Volusia` always equal to one:
+
+```{r}
+comparable <- shark # we will keep the Year and Population values
+comparable$Museum  <- 1 
+comparable$Volusia <- 1
+plot(shark$Year, shark$Attacks, pch = 16, col = "blue")
+lines(shark$Year, predict(fit[[8]], newdata = comparable, type = "response"), 
+      lwd = 2, col = "red")
+lines(shark$Year, predict(fit_noff, newdata = comparable, type = "response"), 
+      lwd = 2, col = "black")
+```
+
+## Negative binomial regression
+
+As an alternative to the quasi-likelihood approach, we could do Negative
+Binomial regression. A function to do this is in the `MASS` library:
+```{r}
+library(MASS)
+fit_NB <- glm.nb(formula = Attacks ~ Museum + Volusia 
+                  + offset(log(Population)), 
+                  data = shark)
+summary(fit_NB)
+```
+
+Overlay the negative binomial regression fit on the Poisson regression fit: 
+```{r}
+plot(shark$Year, shark$Attacks, pch = 16, col = "blue")
+lines(shark$Year, predict(fit[[8]], type = "response"), lwd = 2, col = "red")
+lines(shark$Year, exp(predict(fit_NB)), lwd = 2, col = "green")
+```
+
+Finally, comparing the Poisson, quasi-Poisson, and negative binomial mean-variance models:
+\begin{align*}
+ \mbox{Poisson:} & \quad\mbox{variance}=\mbox{mean}\\
+ \mbox{quasi-Poisson:} & \quad \mbox{variance}=\psi\times \mbox{mean}\\
+ \mbox{Negative Binomial:} & \quad\mbox{variance}=\mbox{mean}+\frac{\mbox{mean}^2}{\theta}.
+\end{align*}
+
+```{r}
+plot(m, v, pch = 16, col = "blue", 
+     xlab = "window mean", ylab = "window variance")
+abline(c(0,1), col = "red", lwd = 2)
+mu_NB <- sort(exp(predict(fit_NB)))
+lines(mu_NB, mu_NB + mu_NB^2 / fit_NB$theta, col = "green", lwd = 2)
+mu <- sort(exp(predict(fit[[8]])))
+psi <- summary(fit[[8]])$dispersion
+lines(mu, psi * mu, col = "black", lwd = 2)
+```
